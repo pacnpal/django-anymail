@@ -30,7 +30,6 @@ jobs:
           python -m tox --gh-matrix-dump  # for debugging
 
   test:
-    # Ubuntu 22.04 runner includes Python 3.10
     runs-on: ubuntu-22.04
     needs: get-envlist
     strategy:
@@ -53,7 +52,7 @@ jobs:
         # for installing/running tox
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
       - name: Install tox
         run: |
           set -x
