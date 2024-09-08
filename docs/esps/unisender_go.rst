@@ -329,19 +329,8 @@ Status tracking webhooks
 ------------------------
 
 If you are using Anymail's normalized :ref:`status tracking <event-tracking>`, add
-the url in Unisender Go's dashboard. Where to set the webhook depends on where
-you got your :setting:`UNISENDER_GO_API_KEY <ANYMAIL_UNISENDER_GO_API_KEY>`:
-
-* If you are using an account-level API key, configure the webhook
-  under Settings > Webhooks (Настройки > Вебхуки).
-* If you are using a project-level API key, configure the webhook
-  under Settings > Projects (Настройки > Проекты).
-
-(If you try to mix account-level and project-level API keys and webhooks,
-webhook signature validation will fail, and you'll get
-:exc:`~anymail.exceptions.AnymailWebhookValidationFailure` errors.)
-
-Enter these settings for the webhook:
+the url in Unisender Go's dashboard under Settings > Webhooks (Настройки > Вебхуки).
+Create a webhook with these settings:
 
 *  **Notification Url:**
 
@@ -350,7 +339,8 @@ Enter these settings for the webhook:
    where *yoursite.example.com* is your Django site.
 
 *  **Status:** set to "Active" if you have already deployed your Django project
-   with Anymail installed. Otherwise set to "Inactive" and update after you deploy.
+   with Anymail installed. Otherwise set to "Inactive" and wait to activate it
+   until you deploy.
 
    (Unisender Go performs a GET request to verify the webhook URL
    when it is marked active.)
@@ -361,8 +351,9 @@ Enter these settings for the webhook:
    with a mod_deflate *input* filter---you could also use "json_post_compressed."
    Most web servers do not handle compressed input by default.)
 
-*  **Events:** your choice. Anymail supports any combination of ``sent, delivered,
-   soft_bounced, hard_bounced, opened, clicked, unsubscribed, subscribed, spam``.
+*  **Events:** your choice. Anymail supports any combination of ``sent``,
+   ``delivered``, ``soft_bounced``, ``hard_bounced``, ``opened``, ``clicked``,
+   ``unsubscribed``, ``subscribed``, and/or ``spam``.
 
    Anymail does not support Unisender Go's ``spam_block`` events (but will ignore
    them if you accidentally include it).
@@ -395,9 +386,17 @@ Enter these settings for the webhook:
    :attr:`~anymail.signals.AnymailTrackingEvent.user_agent` or
    :attr:`~anymail.signals.AnymailTrackingEvent.click_url`.)
 
+*  **Selected project:** Must match the project for your Anymail
+   :setting:`UNISENDER_GO_API_KEY <ANYMAIL_UNISENDER_GO_API_KEY>` setting,
+   if projects are enabled for your account and you are using a project level
+   API key. Leave blank if you are using your account level API key.
+
+   This affects webhook signing. If the selected project does not match your API key,
+   you'll get :exc:`~anymail.exceptions.AnymailWebhookValidationFailure` errors.
+
 Note that Unisender Go does not deliver tracking events for recipient
 addresses that are blocked at send time. You must check the message's
-:attr:`anymail_status.recipients[recipient_email].message_id <anymail.message.AnymailStatus.recipients>`
+:attr:`anymail_status.recipients[recipient_email].status <anymail.message.AnymailStatus.recipients>`
 immediately after sending to detect rejected recipients.
 
 Unisender Go implements webhook signing on the entire event payload,

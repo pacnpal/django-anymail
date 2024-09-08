@@ -36,6 +36,18 @@ Breaking changes
 
 * Require **Django 4.0 or later** and Python 3.8 or later.
 
+Fixes
+~~~~~
+
+* **Unisender Go:** Fix several problems in Anymail's Unisender Go status tracking
+  webhook. Rework signature checking to fix false validation errors (particularly
+  on "clicked" and "opened" events). Properly handle "use single event" webhook
+  option. Correctly verify WEBHOOK_SECRET when set. Provide Unisender Go's
+  ``delivery_status`` code and unsubscribe form ``comment`` in Anymail's
+  ``event.description``. Treat soft bounces as "deferred" rather than "bounced".
+  (Thanks to `@MikeVL`_ for fixing the signature validation problem.)
+
+
 Features
 ~~~~~~~~
 
@@ -1741,6 +1753,7 @@ Features
 .. _@mark-mishyn: https://github.com/mark-mishyn
 .. _@martinezleoml: https://github.com/martinezleoml
 .. _@mbk-ok: https://github.com/mbk-ok
+.. _@MikeVL: https://github.com/MikeVL
 .. _@mounirmesselmeni: https://github.com/mounirmesselmeni
 .. _@mwheels: https://github.com/mwheels
 .. _@nuschk: https://github.com/nuschk
