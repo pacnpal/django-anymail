@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import io
 import json
+import typing
 from base64 import b64decode
 
 from django.http import HttpResponse
@@ -144,6 +147,21 @@ class AmazonSESBaseWebhookView(AnymailBaseWebhookView):
     def esp_to_anymail_events(self, ses_event, sns_message):
         raise NotImplementedError()
 
+    def get_boto_client(self, service_name: str, **kwargs):
+        """
+        Return a boto3 client for service_name, using session_params and
+        client_params from settings. Any kwargs are treated as additional
+        client_params (overriding settings values).
+        """
+        if kwargs:
+            client_params = self.client_params.copy()
+            client_params.update(kwargs)
+        else:
+            client_params = self.client_params
+        return boto3.session.Session(**self.session_params).client(
+            service_name, **client_params
+        )
+
     def auto_confirm_sns_subscription(self, sns_message):
         """
         Automatically accept a subscription to Amazon SNS topics,
@@ -193,15 +211,14 @@ class AmazonSESBaseWebhookView(AnymailBaseWebhookView):
             raise ValueError(
                 "Invalid ARN format '{topic_arn!s}'".format(topic_arn=topic_arn)
             )
-        client_params = self.client_params.copy()
-        client_params["region_name"] = region
 
-        sns_client = boto3.session.Session(**self.session_params).client(
-            "sns", **client_params
-        )
-        sns_client.confirm_subscription(
-            TopicArn=topic_arn, Token=token, AuthenticateOnUnsubscribe="true"
-        )
+        sns_client = self.get_boto_client("sns", region_name=region)
+        try:
+            sns_client.confirm_subscription(
+                TopicArn=topic_arn, Token=token, AuthenticateOnUnsubscribe="true"
+            )
+        finally:
+            sns_client.close()
 
 
 class AmazonSESTrackingWebhookView(AmazonSESBaseWebhookView):
@@ -371,28 +388,16 @@ class AmazonSESInboundWebhookView(AmazonSESBaseWebhookView):
             else:
                 message = AnymailInboundMessage.parse_raw_mime(content)
         elif action_type == "S3":
-            # download message from s3 into memory, then parse. (SNS has 15s limit
+            # Download message from s3 and parse. (SNS has 15s limit
             # for an http response; hope download doesn't take that long)
-            bucket_name = action_object["bucketName"]
-            object_key = action_object["objectKey"]
-            s3 = boto3.session.Session(**self.session_params).client(
-                "s3", **self.client_params
+            fp = self.download_s3_object(
+                bucket_name=action_object["bucketName"],
+                object_key=action_object["objectKey"],
             )
-            content = io.BytesIO()
             try:
-                s3.download_fileobj(bucket_name, object_key, content)
-                content.seek(0)
-                message = AnymailInboundMessage.parse_raw_mime_file(content)
-            except ClientError as err:
-                # improve the botocore error message
-                raise AnymailBotoClientAPIError(
-                    "Anymail AmazonSESInboundWebhookView couldn't download"
-                    " S3 object '{bucket_name}:{object_key}'"
-                    "".format(bucket_name=bucket_name, object_key=object_key),
-                    client_error=err,
-                ) from err
+                message = AnymailInboundMessage.parse_raw_mime_file(fp)
             finally:
-                content.close()
+                fp.close()
         else:
             raise AnymailConfigurationError(
                 "Anymail's Amazon SES inbound webhook works only with 'SNS' or 'S3'"
@@ -431,6 +436,30 @@ class AmazonSESInboundWebhookView(AmazonSESBaseWebhookView):
                 esp_event=ses_event,
             )
         ]
+
+    def download_s3_object(self, bucket_name: str, object_key: str) -> typing.IO:
+        """
+        Download bucket_name/object_key from S3. Must return a file-like object
+        (bytes or text) opened for reading. Caller is responsible for closing it.
+        """
+        s3_client = self.get_boto_client("s3")
+        bytesio = io.BytesIO()
+        try:
+            s3_client.download_fileobj(bucket_name, object_key, bytesio)
+        except ClientError as err:
+            bytesio.close()
+            # improve the botocore error message
+            raise AnymailBotoClientAPIError(
+                "Anymail AmazonSESInboundWebhookView couldn't download"
+                " S3 object '{bucket_name}:{object_key}'"
+                "".format(bucket_name=bucket_name, object_key=object_key),
+                client_error=err,
+            ) from err
+        else:
+            bytesio.seek(0)
+            return bytesio
+        finally:
+            s3_client.close()
 
 
 class AnymailBotoClientAPIError(AnymailAPIError, ClientError):
