@@ -26,15 +26,20 @@ Release history
     ..  This extra heading level keeps the ToC from becoming unmanageably long
 
 
-vNext (12.0)
-------------
+v12.0
+-----
 
-*unreleased changes*
+*2024-09-09*
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
 * Require **Django 4.0 or later** and Python 3.8 or later.
+
+Features
+~~~~~~~~
+
+* **Resend:** Add support for ``send_at``.
 
 Fixes
 ~~~~~
@@ -46,12 +51,6 @@ Fixes
   ``delivery_status`` code and unsubscribe form ``comment`` in Anymail's
   ``event.description``. Treat soft bounces as "deferred" rather than "bounced".
   (Thanks to `@MikeVL`_ for fixing the signature validation problem.)
-
-
-Features
-~~~~~~~~
-
-* **Resend:** Add support for ``send_at``.
 
 Other
 ~~~~~
