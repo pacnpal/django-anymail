@@ -12,6 +12,7 @@ from .utils import AnymailTestMixin, sample_image_path
 ANYMAIL_TEST_MAILJET_API_KEY = os.getenv("ANYMAIL_TEST_MAILJET_API_KEY")
 ANYMAIL_TEST_MAILJET_SECRET_KEY = os.getenv("ANYMAIL_TEST_MAILJET_SECRET_KEY")
 ANYMAIL_TEST_MAILJET_DOMAIN = os.getenv("ANYMAIL_TEST_MAILJET_DOMAIN")
+ANYMAIL_TEST_MAILJET_TEMPLATE_ID = os.getenv("ANYMAIL_TEST_MAILJET_TEMPLATE_ID")
 
 
 @tag("mailjet", "live")
@@ -136,10 +137,15 @@ class MailjetBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
         self.assertEqual(recipient_status["test+to1@anymail.dev"].status, "sent")
         self.assertEqual(recipient_status["test+to2@anymail.dev"].status, "sent")
 
+    @unittest.skipUnless(
+        ANYMAIL_TEST_MAILJET_TEMPLATE_ID,
+        "Set ANYMAIL_TEST_MAILJET_TEMPLATE_ID environment variable to run"
+        " Mailjet stored template integration test",
+    )
     def test_stored_template(self):
         message = AnymailMessage(
             # ID of the real template named 'test-template' in our Mailjet test account:
-            template_id="176375",
+            template_id=ANYMAIL_TEST_MAILJET_TEMPLATE_ID,
             to=["test+to1@anymail.dev"],
             merge_data={
                 "test+to1@anymail.dev": {
