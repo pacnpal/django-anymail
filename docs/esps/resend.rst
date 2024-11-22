@@ -189,6 +189,12 @@ anyway---see :ref:`unsupported-features`.
   .. versionchanged:: 12.0
       Resend now supports :attr:`~anymail.message.AnymailMessage.send_at`.
 
+**No attachments with batch sending**
+  Resend does not currently support attachments when using
+  :ref:`batch sending <resend-templates>`. Trying to send an attachment
+  while using :attr:`~anymail.message.AnymailMessage.merge_metadata` may
+  result in a Resend API error.
+
 **No envelope sender**
   Resend does not support specifying the
   :attr:`~anymail.message.AnymailMessage.envelope_sender`.

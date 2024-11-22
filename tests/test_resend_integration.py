@@ -115,7 +115,8 @@ class ResendBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
             },
         )
         message.attach_alternative("<p>HTML content</p>", "text/html")
-        message.attach("attachment1.txt", "Here is some\ntext for you", "text/plain")
+        # Resend does not support attachments in batch send (2024-11-21)
+        # message.attach("attachment1.txt", "Here is some\ntext for you", "text/plain")
 
         message.send()
         # Resend always queues:
