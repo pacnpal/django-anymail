@@ -25,6 +25,18 @@ Release history
 ^^^^^^^^^^^^^^^
     ..  This extra heading level keeps the ToC from becoming unmanageably long
 
+vNext
+-----
+
+*Unreleased changes*
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* **Postal:** Require Python 3.9 or later for Postal tracking webhook support.
+  (Postal's signature verification uses the "cryptography" package, which is no
+  longer reliably installable with Python 3.8.)
+
 
 v12.0
 -----
