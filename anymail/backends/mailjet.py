@@ -34,7 +34,10 @@ class EmailBackend(AnymailRequestsBackend):
         return MailjetPayload(message, defaults, self)
 
     def raise_for_status(self, response, payload, message):
-        if 400 <= response.status_code <= 499:
+        content_type = (
+            response.headers.get("content-type", "").split(";")[0].strip().lower()
+        )
+        if 400 <= response.status_code <= 499 and content_type == "application/json":
             # Mailjet uses 4xx status codes for partial failure in batch send;
             # we'll determine how to handle below in parse_recipient_status.
             return

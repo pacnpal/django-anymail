@@ -43,6 +43,8 @@ Fixes
 * **Mailjet:** Avoid a Mailjet API error when sending an inline image without a
   filename. (Anymail now substitutes ``"attachment"`` for the missing filename.)
   (Thanks to `@chickahoona`_ for reporting the issue.)
+* **Mailjet:** Fix a JSON parsing error on Mailjet 429 "too many requests" API
+  responses. (Thanks to `@rodrigondec`_ for reporting the issue.)
 
 
 v12.0
@@ -1779,6 +1781,7 @@ Features
 .. _@originell: https://github.com/originell
 .. _@puru02: https://github.com/puru02
 .. _@RignonNoel: https://github.com/RignonNoel
+.. _@rodrigondec: https://github.com/rodrigondec
 .. _@sblondon: https://github.com/sblondon
 .. _@scur-iolus: https://github.com/scur-iolus
 .. _@sdarwin: https://github.com/sdarwin

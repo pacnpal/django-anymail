@@ -10,6 +10,7 @@ from django.test import SimpleTestCase, override_settings, tag
 
 from anymail.exceptions import (
     AnymailAPIError,
+    AnymailRequestsAPIError,
     AnymailSerializationError,
     AnymailUnsupportedFeature,
 )
@@ -690,43 +691,41 @@ class MailjetBackendAnymailFeatureTests(MailjetBackendMockAPITestCase):
         # Mailjet's v3.1 API will partially fail a batch send, allowing valid emails
         # to go out. The API response doesn't identify the failed email addresses;
         # make sure we represent them correctly in the anymail_status.
-        response_content = json.dumps(
-            {
-                "Messages": [
-                    {
-                        "Status": "success",
-                        "CustomID": "",
-                        "To": [
-                            {
-                                "Email": "to-good@example.com",
-                                "MessageUUID": "556e896a-e041-4836-bb35-8bb75ee308c5",
-                                "MessageID": 12345678901234500,
-                                "MessageHref": "https://api.mailjet.com/v3/REST"
-                                "/message/12345678901234500",
-                            }
-                        ],
-                        "Cc": [],
-                        "Bcc": [],
-                    },
-                    {
-                        "Errors": [
-                            {
-                                "ErrorIdentifier": "f480a5a2-0334-4e08"
-                                "-b2b7-f372ce5669e0",
-                                "ErrorCode": "mj-0013",
-                                "StatusCode": 400,
-                                "ErrorMessage": '"invalid@123.4" is an invalid'
-                                " email address.",
-                                "ErrorRelatedTo": ["To[0].Email"],
-                            }
-                        ],
-                        "Status": "error",
-                    },
-                ]
-            }
-        ).encode("utf-8")
+        response_data = {
+            "Messages": [
+                {
+                    "Status": "success",
+                    "CustomID": "",
+                    "To": [
+                        {
+                            "Email": "to-good@example.com",
+                            "MessageUUID": "556e896a-e041-4836-bb35-8bb75ee308c5",
+                            "MessageID": 12345678901234500,
+                            "MessageHref": "https://api.mailjet.com/v3/REST"
+                            "/message/12345678901234500",
+                        }
+                    ],
+                    "Cc": [],
+                    "Bcc": [],
+                },
+                {
+                    "Errors": [
+                        {
+                            "ErrorIdentifier": "f480a5a2-0334-4e08"
+                            "-b2b7-f372ce5669e0",
+                            "ErrorCode": "mj-0013",
+                            "StatusCode": 400,
+                            "ErrorMessage": '"invalid@123.4" is an invalid'
+                            " email address.",
+                            "ErrorRelatedTo": ["To[0].Email"],
+                        }
+                    ],
+                    "Status": "error",
+                },
+            ]
+        }
         # Mailjet uses 400 for partial success:
-        self.set_mock_response(raw=response_content, status_code=400)
+        self.set_mock_response(json_data=response_data, status_code=400)
         msg = mail.EmailMessage(
             "Subject",
             "Message",
@@ -751,7 +750,7 @@ class MailjetBackendAnymailFeatureTests(MailjetBackendMockAPITestCase):
             msg.anymail_status.recipients["invalid@123.4"].message_id, None
         )
         self.assertEqual(msg.anymail_status.message_id, {"12345678901234500", None})
-        self.assertEqual(msg.anymail_status.esp_response.content, response_content)
+        self.assertEqual(msg.anymail_status.esp_response.json(), response_data)
 
     # noinspection PyUnresolvedReferences
     def test_send_failed_anymail_status(self):
@@ -763,6 +762,18 @@ class MailjetBackendAnymailFeatureTests(MailjetBackendMockAPITestCase):
         self.assertIsNone(self.message.anymail_status.message_id)
         self.assertEqual(self.message.anymail_status.recipients, {})
         self.assertIsNone(self.message.anymail_status.esp_response)
+
+    def test_non_json_error(self):
+        """429 (and other?) errors don't have a json payload"""
+        self.set_mock_response(
+            status_code=429, raw=b"Rate limit exceeded", content_type="text/html"
+        )
+        with self.assertRaisesRegex(
+            AnymailRequestsAPIError,
+            r"^Mailjet API response 429 .*Rate limit exceeded.*",
+        ) as cm:
+            self.message.send()
+        self.assertNotIn("Invalid JSON", str(cm.exception))
 
     # noinspection PyUnresolvedReferences
     def test_send_unparsable_response(self):
