@@ -43,8 +43,15 @@ Fixes
 * **Mailjet:** Avoid a Mailjet API error when sending an inline image without a
   filename. (Anymail now substitutes ``"attachment"`` for the missing filename.)
   (Thanks to `@chickahoona`_ for reporting the issue.)
+
 * **Mailjet:** Fix a JSON parsing error on Mailjet 429 "too many requests" API
   responses. (Thanks to `@rodrigondec`_ for reporting the issue.)
+
+* **Postmark:** Fix a parsing error when Postmark indicates a sent message has
+  been delayed, which can occur if your message stream is paused or throttled or
+  when Postmark is experiencing service issues. These messages will now report
+  "queued" in the ``anymail_status`` (rather than throwing an error or reporting
+  "sent"). (Thanks to `@jmduke`_ for reporting the issue.)
 
 
 v12.0

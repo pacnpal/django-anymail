@@ -64,7 +64,8 @@ class EmailBackend(AnymailRequestsBackend):
         for one_response in parsed_response:
             try:
                 # these fields should always be present
-                error_code = one_response["ErrorCode"]
+                # (but ErrorCode may be missing for Postmark service delays)
+                error_code = one_response.get("ErrorCode", 0)
                 msg = one_response["Message"]
             except (KeyError, TypeError) as err:
                 raise AnymailRequestsAPIError(
@@ -88,6 +89,11 @@ class EmailBackend(AnymailRequestsBackend):
                         backend=self,
                     ) from err
 
+                status = "sent"
+                # "Message accepted, but delivery may be delayed." (See #392.)
+                if "delivery may be delayed" in msg:
+                    status = "queued"
+
                 # Assume all To recipients are "sent" unless proven otherwise below.
                 # (Must use "To" from API response to get correct individual MessageIDs
                 # in batch send.)
@@ -98,7 +104,7 @@ class EmailBackend(AnymailRequestsBackend):
                 else:
                     for to in parse_address_list(to_header):
                         recipient_status[to.addr_spec] = AnymailRecipientStatus(
-                            message_id=message_id, status="sent"
+                            message_id=message_id, status=status
                         )
 
                 # Assume all Cc and Bcc recipients are "sent" unless proven otherwise
@@ -106,7 +112,7 @@ class EmailBackend(AnymailRequestsBackend):
                 # original payload values.)
                 for recip in payload.cc_and_bcc_emails:
                     recipient_status[recip.addr_spec] = AnymailRecipientStatus(
-                        message_id=message_id, status="sent"
+                        message_id=message_id, status=status
                     )
 
                 # Change "sent" to "rejected" if Postmark reported an address as

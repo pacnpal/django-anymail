@@ -1079,6 +1079,22 @@ class PostmarkBackendRecipientsRefusedTests(PostmarkBackendMockAPITestCase):
         self.assertEqual(status.recipients["valid@example.com"].status, "sent")
         self.assertEqual(status.recipients["spam@example.com"].status, "rejected")
 
+    def test_delivery_delayed_response(self):
+        # Postmark's "delivery may be delayed" response doesn't have an ErrorCode
+        # field set to 0 (despite their API docs).
+        response_data = {
+            "Message": "Message accepted, but delivery may be delayed.",
+            "MessageID": "38360f97-ff7f-44b2-bcd1-5ea94ff2af00",
+            "SubmittedAt": "2024-08-05T02:03:37.0951168Z",
+            "To": "to@example.com",
+        }
+        self.set_mock_response(json_data=response_data)
+        sent = self.message.send()
+        self.assertEqual(sent, 1)
+        status = self.message.anymail_status
+        self.assertEqual(status.recipients["to@example.com"].status, "queued")
+        self.assertEqual(status.message_id, "38360f97-ff7f-44b2-bcd1-5ea94ff2af00")
+
 
 @tag("postmark")
 class PostmarkBackendSessionSharingTestCase(
