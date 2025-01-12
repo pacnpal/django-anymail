@@ -98,7 +98,7 @@ class AnymailRecipientStatus:
         try:
             # message_id must be something that can be put in a set
             # (see AnymailStatus.set_recipient_status)
-            set([message_id])
+            {message_id}
         except TypeError:
             raise TypeError("Invalid message_id %r is not scalar type" % message_id)
         if status is not None and status not in ANYMAIL_STATUSES:
