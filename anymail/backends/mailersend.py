@@ -155,8 +155,8 @@ class MailerSendPayload(RequestsPayload):
                 # We can't guess which API to use for this send.
                 raise AnymailUnsupportedFeature(
                     f"{self.esp_name} requires MAILERSEND_BATCH_SEND_MODE set to either"
-                    f" 'use-bulk-email' or 'expose-to-list' for using batch send"
-                    f" (merge_data) with multiple recipients. See the Anymail docs."
+                    " 'use-bulk-email' or 'expose-to-list' for using batch send"
+                    " (merge_data) with multiple recipients. See the Anymail docs."
                 )
         else:
             return "email"
@@ -184,7 +184,7 @@ class MailerSendPayload(RequestsPayload):
                 data.append(recipient_data)
         else:
             raise AssertionError(
-                f"MailerSendPayload.serialize_data missing"
+                "MailerSendPayload.serialize_data missing"
                 f" case for api_endpoint {api_endpoint!r}"
             )
         return self.serialize_json(data)

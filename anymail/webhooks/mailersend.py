@@ -52,7 +52,7 @@ class MailerSendBaseWebhookView(AnymailBaseWebhookView):
         ).hexdigest()
         if not constant_time_compare(signature, expected_signature):
             raise AnymailWebhookValidationFailure(
-                f"MailerSend webhook called with incorrect signature"
+                "MailerSend webhook called with incorrect signature"
                 f" (check Anymail {self._secret_setting_name} setting)"
             )
 
