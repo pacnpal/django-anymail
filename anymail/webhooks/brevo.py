@@ -216,7 +216,7 @@ class BrevoInboundWebhookView(BrevoBaseWebhookView):
         # FUTURE: somehow defer download until attachment is accessed?
         token = attachment["DownloadToken"]
         url = urljoin(self.api_url, f"inbound/attachments/{quote(token, safe='')}")
-        response = requests.get(url, headers={"api-key": self.api_key})
+        response = requests.get(url, headers={"api-key": self.api_key}, timeout=60)
         response.raise_for_status()  # or maybe just log and continue?
 
         content = response.content
