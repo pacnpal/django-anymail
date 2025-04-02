@@ -3,8 +3,6 @@ from datetime import datetime, timezone
 from email.utils import unquote
 from urllib.parse import quote, urljoin
 
-import requests
-
 from ..exceptions import AnymailConfigurationError
 from ..inbound import AnymailInboundMessage
 from ..signals import (
@@ -17,6 +15,7 @@ from ..signals import (
 )
 from ..utils import get_anymail_setting
 from .base import AnymailBaseWebhookView
+from security import safe_requests
 
 
 class BrevoBaseWebhookView(AnymailBaseWebhookView):
@@ -216,7 +215,7 @@ class BrevoInboundWebhookView(BrevoBaseWebhookView):
         # FUTURE: somehow defer download until attachment is accessed?
         token = attachment["DownloadToken"]
         url = urljoin(self.api_url, f"inbound/attachments/{quote(token, safe='')}")
-        response = requests.get(url, headers={"api-key": self.api_key})
+        response = safe_requests.get(url, headers={"api-key": self.api_key})
         response.raise_for_status()  # or maybe just log and continue?
 
         content = response.content
