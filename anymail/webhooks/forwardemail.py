@@ -37,7 +37,9 @@ class ForwardEmailBaseWebhookView(AnymailBaseWebhookView):
             kwargs=kwargs,
             default=None,
         )
-        if webhook_signing_key is None:
+        # Treat a blank/empty key the same as unset, so an empty config value
+        # can't silently disable the insecure-webhook warning.
+        if not webhook_signing_key:
             self._webhook_signing_key = None
             self.warn_if_no_basic_auth = True
         else:
@@ -264,6 +266,17 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
         elif isinstance(headers, dict):
             # mailparser may serialize headers as an object of name: value.
             headers = list(headers.items())
+
+        if headers is not None:
+            # AnymailInboundMessage.construct sets From/To/Cc/Bcc/Subject from the
+            # dedicated args below, so drop those from the extra headers to avoid
+            # duplicate singleton headers (which can flip from_email to a list).
+            singleton_headers = {"from", "to", "cc", "bcc", "subject"}
+            headers = [
+                (name, value)
+                for name, value in headers
+                if str(name).lower() not in singleton_headers
+            ]
 
         attachments = [
             att

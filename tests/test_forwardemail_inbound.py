@@ -113,6 +113,30 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
         self.assertEqual(message.html, "<p>Parsed body</p>")
         self.assertEqual(message.envelope_recipient, "inbound@example.com")
 
+    def test_inbound_parsed_headers_dict_no_duplicate_singletons(self):
+        # A parsed `headers` map that also includes From/To/Subject must not
+        # duplicate those singleton headers (which would flip from_email to a list).
+        payload = {
+            "from": {"text": "Sender Name <from@example.org>"},
+            "to": {"text": "inbound@example.com"},
+            "subject": "Parsed subject",
+            "headers": {
+                "From": "Sender Name <from@example.org>",
+                "To": "inbound@example.com",
+                "Subject": "Parsed subject",
+                "X-Custom": "custom-value",
+            },
+            "text": "Parsed body",
+            "recipients": ["inbound@example.com"],
+        }
+        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        self.assertEqual(response.status_code, 200)
+        message = self.get_kwargs(self.inbound_handler)["event"].message
+        self.assertEqual(message.from_email.addr_spec, "from@example.org")
+        self.assertEqual(message.get_all("From"), ["Sender Name <from@example.org>"])
+        self.assertEqual(message.get_all("Subject"), ["Parsed subject"])
+        self.assertEqual(message["X-Custom"], "custom-value")
+
     def test_inbound_parsed_raw_headers_and_attachments(self):
         """With ?raw=false, headers may be a raw string and attachments a list."""
         import base64

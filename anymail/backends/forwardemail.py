@@ -41,11 +41,9 @@ class EmailBackend(AnymailRequestsBackend):
                 backend=self,
             )
 
-        # Prefer Forward Email's internal record id as the message_id: it's the
-        # value its bounce webhooks reference as `email_id`, so it lets callers
-        # correlate a send with later tracking events. Some success responses
-        # may omit it, so fall back gracefully---a 2xx response already means
-        # the message was accepted, and we should never report that as a failure.
+        # Use Forward Email's record id (the `email_id` its webhooks reference)
+        # as the message_id; a 2xx response means the message was accepted, so
+        # fall back gracefully if the id is missing.
         message_id = (
             parsed_response.get("id")
             or parsed_response.get("message_id")
@@ -91,7 +89,6 @@ class ForwardEmailPayload(RequestsPayload):
         self.data["from"] = email.format(idna_encode=self.backend.idna_encode)
 
     def set_recipients(self, recipient_type, emails):
-        # recipient_type is always one of "to", "cc", "bcc" (from BasePayload).
         if emails:
             self.data[recipient_type] = ", ".join(
                 email.format(idna_encode=self.backend.idna_encode) for email in emails
@@ -112,15 +109,16 @@ class ForwardEmailPayload(RequestsPayload):
         # Forward Email requires header values to be strings.
         # Stringify ints and floats; anything else is the caller's responsibility.
         for key, value in headers.items():
-            if isinstance(value, BASIC_NUMERIC_TYPES):
-                value = str(value)
+            header_value = (
+                str(value) if isinstance(value, BASIC_NUMERIC_TYPES) else value
+            )
             if key.lower() == "message-id":
                 # Message-ID is a protected header in Nodemailer/Forward Email:
                 # it must be set via the dedicated `messageId` field, or it will
                 # be overwritten with a generated value.
-                self.data["messageId"] = value
+                self.data["messageId"] = header_value
             else:
-                self.data.setdefault("headers", {})[key] = value
+                self.data.setdefault("headers", {})[key] = header_value
 
     def set_text_body(self, body):
         self.data["text"] = body
@@ -162,31 +160,19 @@ class ForwardEmailPayload(RequestsPayload):
         self.data.setdefault("headers", {})["X-Tags"] = self.serialize_json(tags)
 
     def set_send_at(self, send_at):
-        # Forward Email schedules delivery by the message `date`: its send
-        # worker only processes emails whose `date` is in the past (up to 30
-        # days in the future), so a future `date` defers delivery.
+        # Forward Email schedules delivery by the message `date`
+        # (a future date, up to 30 days out, defers delivery).
         try:
             self.data["date"] = send_at.isoformat()
         except (AttributeError, TypeError):
             # User is responsible for formatting their own string
             self.data["date"] = send_at
 
-    # Forward Email doesn't support open or click tracking.
-    # def set_track_clicks(self, track_clicks):
-    # def set_track_opens(self, track_opens):
-
-    # Forward Email manages the SMTP envelope itself and does not expose
-    # Nodemailer's `envelope` option, so envelope_sender can't be honored.
-    # (Setting Nodemailer's `sender` would only add an RFC Sender header,
-    # not change the Return-Path, so we leave it unsupported.)
-    # def set_envelope_sender(self, email):
-
-    # Forward Email doesn't support server-side templates or batch/merge sending.
-    # def set_template_id(self, template_id):
-    # def set_merge_data(self, merge_data):
-    # def set_merge_global_data(self, merge_global_data):
-    # def set_merge_metadata(self, merge_metadata):
-    # def set_merge_headers(self, merge_headers):
+    # Forward Email doesn't support open/click tracking (set_track_clicks/opens),
+    # server-side templates or batch/merge sending (set_template_id, set_merge_*),
+    # or envelope_sender (it manages the SMTP envelope itself; Nodemailer's
+    # `sender` would only add an RFC Sender header). These raise unsupported_feature
+    # via the base payload.
 
     def set_esp_extra(self, extra):
         self.data.update(extra)

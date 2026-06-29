@@ -69,6 +69,14 @@ class ForwardEmailWebhookSignatureTestCase(ForwardEmailWebhookTestCase):
         view = ForwardEmailTrackingWebhookView(webhook_signing_key="other_key")
         self.assertIsNotNone(view._webhook_signing_key)
 
+    def test_empty_signing_key_treated_as_unset(self):
+        # A blank key must behave like no key (and not suppress basic-auth checks).
+        from anymail.webhooks.forwardemail import ForwardEmailTrackingWebhookView
+
+        view = ForwardEmailTrackingWebhookView(webhook_signing_key="")
+        self.assertIsNone(view._webhook_signing_key)
+        self.assertTrue(view.warn_if_no_basic_auth)
+
 
 @tag("forwardemail")
 @override_settings(ANYMAIL_FORWARDEMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
