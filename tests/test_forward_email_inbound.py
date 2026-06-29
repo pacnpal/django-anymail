@@ -113,6 +113,23 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
         self.assertEqual(message.html, "<p>Parsed body</p>")
         self.assertEqual(message.envelope_recipient, "inbound@example.com")
 
+    def test_inbound_parsed_html_false(self):
+        # mailparser serializes an absent html body as `false`; it must not
+        # become a bogus text/html part.
+        payload = {
+            "from": {"text": "from@example.org"},
+            "to": {"text": "inbound@example.com"},
+            "subject": "No HTML",
+            "text": "Plain only",
+            "html": False,
+            "recipients": ["inbound@example.com"],
+        }
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
+        self.assertEqual(response.status_code, 200)
+        message = self.get_kwargs(self.inbound_handler)["event"].message
+        self.assertEqual(message.text, "Plain only")
+        self.assertIsNone(message.html)
+
     def test_inbound_parsed_headers_dict_no_duplicate_singletons(self):
         # A parsed `headers` map that also includes From/To/Subject must not
         # duplicate those singleton headers (which would flip from_email to a list).

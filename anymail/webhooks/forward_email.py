@@ -286,6 +286,10 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
             if att is not None
         ]
 
+        # mailparser serializes an absent text/html body as `false`; coerce any
+        # non-string body to None so construct() doesn't build a bogus part.
+        text = esp_event.get("text")
+        html = esp_event.get("html")
         return AnymailInboundMessage.construct(
             raw_headers=raw_headers,
             from_email=address_field(esp_event.get("from")),
@@ -293,8 +297,8 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
             cc=address_field(esp_event.get("cc")),
             subject=esp_event.get("subject"),
             headers=headers,
-            text=esp_event.get("text"),
-            html=esp_event.get("html"),
+            text=text if isinstance(text, str) else None,
+            html=html if isinstance(html, str) else None,
             attachments=attachments or None,
         )
 
