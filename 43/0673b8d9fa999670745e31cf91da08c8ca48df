@@ -1,0 +1,30 @@
+tests/test_forwardemail_webhooks.py
+  s_0c519ffabc3af4::t_07f80c9df893f9 72-79
+anymail/backends/forwardemail.py
+  s_0c519ffabc3af4::t_0aefe0ef73c0ef 44-46
+  s_0c519ffabc3af4::t_ba04e6269159e2 112-114
+  s_0c519ffabc3af4::t_1a3958e5b694d1 171-175
+  s_0c519ffabc3af4::t_1670376e544861 163-164
+  s_0c519ffabc3af4::t_8d20bcbabd0213 119,121
+anymail/webhooks/forwardemail.py
+  s_0c519ffabc3af4::t_1f25eab946d0bb 270-280
+  s_0c519ffabc3af4::t_e918ff9dede12d 40-42
+tests/test_forwardemail_inbound.py
+  s_0c519ffabc3af4::t_ef63be14ea8eb1 116-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "430673b8d9fa999670745e31cf91da08c8ca48df",
+  "prompts": {},
+  "sessions": {
+    "s_0c519ffabc3af4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "edb21889-3716-4ea4-87bc-ba35459c8957",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pacnpal <183241239+pacnpal@users.noreply.github.com>"
+    }
+  }
+}
