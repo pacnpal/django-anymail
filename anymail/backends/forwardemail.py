@@ -84,7 +84,7 @@ class ForwardEmailPayload(RequestsPayload):
         self.data["from"] = email.format(idna_encode=self.backend.idna_encode)
 
     def set_recipients(self, recipient_type, emails):
-        assert recipient_type in ["to", "cc", "bcc"]
+        # recipient_type is always one of "to", "cc", "bcc" (from BasePayload).
         if emails:
             self.data[recipient_type] = ", ".join(
                 email.format(idna_encode=self.backend.idna_encode) for email in emails
