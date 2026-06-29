@@ -207,16 +207,16 @@ class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase)
             json.loads(data["headers"]["X-Tags"]), ["receipt", "reorder test 12"]
         )
 
-    def test_send_at_unsupported(self):
-        # Forward Email's `date` field only sets the message Date header; it is
-        # not a verified scheduled-delivery control, so send_at is unsupported.
+    def test_send_at(self):
+        # Forward Email schedules delivery by the message `date`.
         utc_plus_6 = get_fixed_timezone(6 * 60)
         with override_current_timezone(utc_plus_6):
             self.message.send_at = datetime(
                 2022, 10, 11, 12, 13, 14, 567000, tzinfo=utc_plus_6
             )
-            with self.assertRaisesMessage(AnymailUnsupportedFeature, "send_at"):
-                self.message.send()
+            self.message.send()
+            data = self.get_api_call_json()
+            self.assertEqual(data["date"], "2022-10-11T12:13:14.567000+06:00")
 
     def test_esp_extra(self):
         self.message.esp_extra = {"priority": "high", "icalEvent": {"content": "..."}}
@@ -277,12 +277,15 @@ class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase)
         self.assertEqual(recipient.status, "queued")
         self.assertEqual(recipient.message_id, "5f1f3c...")
 
-    def test_invalid_api_response(self):
-        self.set_mock_response(raw=b'{"unexpected": "format"}')
-        with self.assertRaisesMessage(
-            AnymailAPIError, "Invalid Forward Email API response format"
-        ):
-            self.message.send()
+    def test_success_response_without_id(self):
+        # A 2xx response means the message was accepted, so a missing id must
+        # not be reported as a send failure (message_id is simply None).
+        self.set_mock_response(raw=b'{"message": "OK", "statusCode": 200}')
+        msg = AnymailMessage("Subject", "Body", "from@example.com", ["to@example.com"])
+        sent = msg.send()
+        self.assertEqual(sent, 1)
+        self.assertEqual(msg.anymail_status.status, {"queued"})
+        self.assertIsNone(msg.anymail_status.message_id)
 
     def test_non_dict_api_response(self):
         # A non-dict response (list/str/None) must not crash with AttributeError;

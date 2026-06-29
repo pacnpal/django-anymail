@@ -32,21 +32,25 @@ class EmailBackend(AnymailRequestsBackend):
 
     def parse_recipient_status(self, response, payload, message):
         parsed_response = self.deserialize_json_response(response, payload, message)
-        try:
-            # Use Forward Email's internal record id as the message_id. This is
-            # the value Forward Email reports as `email_id` in its bounce
-            # webhooks, so it lets callers correlate a send with later tracking
-            # events. (Forward Email also returns the Message-ID header, but that
-            # is not what its webhooks reference.)
-            message_id = parsed_response["id"]
-        except (KeyError, TypeError, AttributeError) as err:
+        if not isinstance(parsed_response, dict):
             raise AnymailRequestsAPIError(
                 "Invalid Forward Email API response format",
                 email_message=message,
                 payload=payload,
                 response=response,
                 backend=self,
-            ) from err
+            )
+
+        # Prefer Forward Email's internal record id as the message_id: it's the
+        # value its bounce webhooks reference as `email_id`, so it lets callers
+        # correlate a send with later tracking events. Some success responses
+        # may omit it, so fall back gracefully---a 2xx response already means
+        # the message was accepted, and we should never report that as a failure.
+        message_id = (
+            parsed_response.get("id")
+            or parsed_response.get("message_id")
+            or parsed_response.get("messageId")
+        )
 
         # Forward Email queues all messages for asynchronous delivery.
         return {
@@ -153,6 +157,16 @@ class ForwardEmailPayload(RequestsPayload):
         # Forward Email has no native tags; send as json in a custom header.
         self.data.setdefault("headers", {})["X-Tags"] = self.serialize_json(tags)
 
+    def set_send_at(self, send_at):
+        # Forward Email schedules delivery by the message `date`: its send
+        # worker only processes emails whose `date` is in the past (up to 30
+        # days in the future), so a future `date` defers delivery.
+        try:
+            self.data["date"] = send_at.isoformat()
+        except (AttributeError, TypeError):
+            # User is responsible for formatting their own string
+            self.data["date"] = send_at
+
     # Forward Email doesn't support open or click tracking.
     # def set_track_clicks(self, track_clicks):
     # def set_track_opens(self, track_opens):
@@ -162,11 +176,6 @@ class ForwardEmailPayload(RequestsPayload):
     # (Setting Nodemailer's `sender` would only add an RFC Sender header,
     # not change the Return-Path, so we leave it unsupported.)
     # def set_envelope_sender(self, email):
-
-    # Forward Email's `date` field only sets the message Date header; it is not
-    # a verified scheduled-delivery control, so send_at is left unsupported
-    # (callers who want a future Date header can set it via esp_extra).
-    # def set_send_at(self, send_at):
 
     # Forward Email doesn't support server-side templates or batch/merge sending.
     # def set_template_id(self, template_id):

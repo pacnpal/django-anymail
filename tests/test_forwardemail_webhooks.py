@@ -141,6 +141,39 @@ class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
         # Soft failures don't get a reject_reason
         self.assertIsNone(event.reject_reason)
 
+    def test_metadata_and_tags_from_bounce_headers(self):
+        # If Forward Email echoes the outbound headers, recover the X-Metadata
+        # and X-Tags that the backend encoded for metadata/tags.
+        payload = {
+            "email_id": "id5",
+            "recipient": "x@example.com",
+            "bounce": {"category": "block", "code": 554, "status": "5.7.1"},
+            "headers": {
+                "X-Metadata": json.dumps({"user_id": "123", "n": 6}),
+                "X-Tags": json.dumps(["receipt", "test"]),
+            },
+        }
+        self.post_bounce(payload)
+        event = self.get_kwargs(self.tracking_handler)["event"]
+        self.assertEqual(event.metadata, {"user_id": "123", "n": 6})
+        self.assertEqual(event.tags, ["receipt", "test"])
+
+    def test_metadata_and_tags_from_header_list(self):
+        # Headers may also arrive as a list of {name, value} objects.
+        payload = {
+            "email_id": "id6",
+            "recipient": "x@example.com",
+            "bounce": {"category": "block", "code": 554},
+            "headers": [
+                {"name": "X-Tags", "value": json.dumps(["a", "b"])},
+                {"name": "Subject", "value": "hi"},
+            ],
+        }
+        self.post_bounce(payload)
+        event = self.get_kwargs(self.tracking_handler)["event"]
+        self.assertEqual(event.tags, ["a", "b"])
+        self.assertEqual(event.metadata, {})
+
     def test_spam_category_maps_to_spam(self):
         payload = {
             "email_id": "id3",

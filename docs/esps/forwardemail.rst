@@ -32,9 +32,18 @@ in your settings.py.
 .. rubric:: FORWARDEMAIL_API_KEY
 
 Required for sending. An API token from your Forward Email
-`My Account → Security`_ page (or an alias-specific generated password).
-Forward Email authenticates the sending API using HTTP Basic auth with
-the token as the username and an empty password; Anymail handles this for you.
+`My Account → Security`_ page. Forward Email authenticates the sending API
+using HTTP Basic auth with the token as the username and an empty password;
+Anymail handles this for you.
+
+.. note::
+
+    Forward Email also allows authenticating with *alias credentials* (an alias
+    email address as the username and its generated password). That requires a
+    username **and** password, which Anymail's single ``FORWARDEMAIL_API_KEY``
+    setting can't express, so use an API token here. (Don't paste an alias
+    password into ``FORWARDEMAIL_API_KEY``---it would be sent as the username
+    with an empty password and fail to authenticate.)
 
   .. code-block:: python
 
@@ -119,21 +128,21 @@ anyway---see :ref:`unsupported-features`.
   using custom ``X-Tags`` and ``X-Metadata`` email headers. That means they can
   be visible to recipients via their email app's "show original message" (or
   similar) command. **Do not include sensitive data in tags or metadata.**
-  Because Forward Email does not echo these headers back in its webhooks,
-  tags and metadata are not reported with tracking events.
+  (When Forward Email includes the original message headers in a bounce
+  webhook, Anymail decodes these headers back into the tracking event's
+  :attr:`~anymail.signals.AnymailTrackingEvent.tags` and
+  :attr:`~anymail.signals.AnymailTrackingEvent.metadata`.)
+
+**Scheduled sending up to 30 days out**
+  Forward Email supports Anymail's
+  :attr:`~anymail.message.AnymailMessage.send_at` (it holds a message until its
+  ``date`` is reached), but only up to 30 days in the future. Scheduling
+  further out will be rejected by Forward Email's API.
 
 **No envelope sender**
   Forward Email manages the SMTP envelope itself and does not expose a way to
   override the envelope (Return-Path) sender, so it does not support Anymail's
   :attr:`~anymail.message.AnymailMessage.envelope_sender`.
-
-**No scheduled delivery (send_at)**
-  Forward Email's API has a ``date`` field, but that only sets the message
-  :mailheader:`Date` header---it is not a verified scheduled-delivery control.
-  To avoid silently sending immediately when a caller expects delayed delivery,
-  Anymail does not support :attr:`~anymail.message.AnymailMessage.send_at` for
-  Forward Email. (If you only want to set a future :mailheader:`Date` header,
-  you can pass ``date`` via :ref:`esp_extra <forwardemail-esp-extra>`.)
 
 **Status tracking is limited to delivery failures**
   Forward Email's tracking webhook reports *bounce* (delivery failure) events

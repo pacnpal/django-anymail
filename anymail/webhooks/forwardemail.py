@@ -131,6 +131,11 @@ class ForwardEmailTrackingWebhookView(ForwardEmailBaseWebhookView):
         else:
             event_id = email_id or None
 
+        # Recover the metadata and tags that the backend encoded into the
+        # outbound X-Metadata/X-Tags headers, if Forward Email echoes the
+        # original message headers back in the bounce payload.
+        metadata, tags = self._decode_metadata_and_tags(esp_event.get("headers"))
+
         return AnymailTrackingEvent(
             event_type=event_type,
             timestamp=timestamp,
@@ -139,11 +144,49 @@ class ForwardEmailTrackingWebhookView(ForwardEmailBaseWebhookView):
             recipient=recipient,
             reject_reason=reject_reason,
             description=esp_event.get("message"),
+            metadata=metadata,
+            tags=tags,
             # Prefer the full SMTP server response; fall back to the parsed
             # bounce reason if Forward Email didn't include a raw response.
             mta_response=esp_event.get("response") or bounce.get("message"),
             esp_event=esp_event,
         )
+
+    @staticmethod
+    def _decode_metadata_and_tags(headers):
+        """Extract Anymail metadata/tags from outbound X-Metadata/X-Tags headers.
+
+        Forward Email may echo the original message headers in the bounce
+        payload. Headers may be a dict, a list of [name, value] pairs, or a
+        list of {"name"/"key", "value"/"line"} objects; handle each defensively.
+        """
+        metadata = {}
+        tags = []
+        items = []
+        if isinstance(headers, dict):
+            items = list(headers.items())
+        elif isinstance(headers, list):
+            for header in headers:
+                if isinstance(header, dict):
+                    name = header.get("name", header.get("key"))
+                    value = header.get("value", header.get("line"))
+                    if name is not None:
+                        items.append((name, value))
+                elif isinstance(header, (list, tuple)) and len(header) == 2:
+                    items.append((header[0], header[1]))
+        for name, value in items:
+            key = str(name).lower()
+            if key == "x-metadata":
+                try:
+                    metadata = json.loads(value)
+                except (TypeError, ValueError):
+                    pass
+            elif key == "x-tags":
+                try:
+                    tags = json.loads(value)
+                except (TypeError, ValueError):
+                    pass
+        return metadata, tags
 
 
 class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
