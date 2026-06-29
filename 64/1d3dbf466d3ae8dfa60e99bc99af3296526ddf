@@ -1,0 +1,56 @@
+anymail/backends/forward_email.py
+  s_0c519ffabc3af4::t_8a6e7298edb34f 115-117,120-121
+  s_0c519ffabc3af4::t_285900688b570c 135-143
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-114,118-119,122-134,144-189
+tox.ini
+  s_0c519ffabc3af4::t_8272fbe7c51f36 24,56
+docs/esps/index.rst
+  s_0c519ffabc3af4::t_8272fbe7c51f36 17
+docs/esps/esp-feature-matrix.csv
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1
+  s_0c519ffabc3af4::t_796aa12079a000 12
+anymail/webhooks/forward_email.py
+  s_0c519ffabc3af4::t_adc833c3add6cb 200-204,206,223,235-236,243
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-122,125-126,130-131,134-199,205,207-222,224-234,237-242,244-329
+  s_0c519ffabc3af4::t_9f771b3d2bfde7 123-124,127-129,132-133
+docs/esps/forward_email.rst
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-224
+tests/test_forward_email_backend.py
+  s_0c519ffabc3af4::t_b8ea74df8aaf48 146-153
+  s_0c519ffabc3af4::t_4a324ed0136c93 115-122
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-114,123-145,154-356
+.github/workflows/integration-test.yml
+  s_0c519ffabc3af4::t_8272fbe7c51f36 48,92-93
+tests/test_forward_email_webhooks.py
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-116,122-219
+  s_0c519ffabc3af4::t_1e513d7f4fbc54 117-121
+tests/test_forward_email_inbound.py
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-193,210-230
+  s_0c519ffabc3af4::t_8adec33cfec16d 194-209
+anymail/urls.py
+  s_0c519ffabc3af4::t_8272fbe7c51f36 8,47,49,107,109
+CHANGELOG.rst
+  s_0c519ffabc3af4::t_8272fbe7c51f36 39
+pyproject.toml
+  s_0c519ffabc3af4::t_8272fbe7c51f36 28,79
+tests/test_forward_email_integration.py
+  s_0c519ffabc3af4::t_693f1b82b96203 58-60
+  s_0c519ffabc3af4::t_116c93fedf54b7 89-94,99-100
+  s_0c519ffabc3af4::t_8272fbe7c51f36 1-57,61-88,95-98,101-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "641d3dbf466d3ae8dfa60e99bc99af3296526ddf",
+  "prompts": {},
+  "sessions": {
+    "s_0c519ffabc3af4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "edb21889-3716-4ea4-87bc-ba35459c8957",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pacnpal <183241239+pacnpal@users.noreply.github.com>"
+    }
+  }
+}
