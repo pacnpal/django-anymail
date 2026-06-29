@@ -25,6 +25,20 @@ Release history
 ^^^^^^^^^^^^^^^
     ..  This extra heading level keeps the ToC from becoming unmanageably long
 
+vNext
+-----
+
+*unreleased*
+
+Features
+~~~~~~~~
+
+* **Forward Email:** Add support for this ESP, including email sending,
+  status tracking (delivery failure/bounce) webhooks, and inbound email
+  handling. See `the docs
+  <https://anymail.dev/en/stable/esps/forward_email/>`__ for details.
+
+
 v15.0
 -----
 
