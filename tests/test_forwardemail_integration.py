@@ -1,5 +1,6 @@
 import os
 import unittest
+from datetime import datetime, timedelta
 from email.utils import formataddr
 
 from django.test import SimpleTestCase, override_settings, tag
@@ -7,7 +8,7 @@ from django.test import SimpleTestCase, override_settings, tag
 from anymail.exceptions import AnymailAPIError
 from anymail.message import AnymailMessage
 
-from .utils import AnymailTestMixin
+from .utils import AnymailTestMixin, sample_image_path
 
 ANYMAIL_TEST_FORWARDEMAIL_API_KEY = os.getenv("ANYMAIL_TEST_FORWARDEMAIL_API_KEY")
 ANYMAIL_TEST_FORWARDEMAIL_DOMAIN = os.getenv("ANYMAIL_TEST_FORWARDEMAIL_DOMAIN")
@@ -59,21 +60,33 @@ class ForwardEmailBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
         self.assertEqual(anymail_status.message_id, message_id)
 
     def test_all_options(self):
+        send_at = datetime.now() + timedelta(minutes=2)
         message = AnymailMessage(
             subject="Anymail Forward Email all-options integration test",
             body="This is the text body",
-            from_email=formataddr(("Test From, comma", self.from_email)),
+            # Verify workarounds for address formatting issues (non-ASCII
+            # display name with a comma):
+            from_email=formataddr(("Test «Från», med komma", self.from_email)),
             to=["test+to1@anymail.dev", '"Recipient 2, OK?" <test+to2@anymail.dev>'],
             cc=["test+cc1@anymail.dev", "Copy 2 <test+cc2@anymail.dev>"],
-            reply_to=['"Reply, comma" <reply@example.com>', "reply2@example.com"],
+            bcc=["test+bcc1@anymail.dev", "Blind Copy 2 <test+bcc2@anymail.dev>"],
+            reply_to=['"Reply, with comma" <reply@example.com>', "reply2@example.com"],
             headers={"X-Anymail-Test": "value", "X-Anymail-Count": 3},
             metadata={"meta1": "simple string", "meta2": 2},
+            send_at=send_at,
             tags=["tag 1", "tag 2"],
         )
-        message.attach_alternative("<p>HTML content</p>", "text/html")
         message.attach("attachment1.txt", "Here is some\ntext", "text/plain")
+        message.attach("attachment2.csv", "ID,Name\n1,Amy Lina", "text/csv")
+        cid = message.attach_inline_image_file(sample_image_path())
+        message.attach_alternative(
+            "<p><b>HTML:</b> with <a href='http://example.com'>link</a>"
+            " and image: <img src='cid:%s'></p>" % cid,
+            "text/html",
+        )
 
         message.send()
+        # Forward Email always queues:
         self.assertEqual(message.anymail_status.status, {"queued"})
         self.assertGreater(len(message.anymail_status.message_id), 0)
 
