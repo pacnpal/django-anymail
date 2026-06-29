@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from datetime import datetime
 
 from django.utils.crypto import constant_time_compare
 
@@ -67,6 +68,16 @@ class ForwardEmailBaseWebhookView(AnymailBaseWebhookView):
                 "Forward Email webhook called with incorrect signature"
             )
 
+    @staticmethod
+    def _parse_timestamp(value):
+        """Parse an ISO 8601 timestamp, or return None if absent/invalid."""
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return None
+
 
 class ForwardEmailTrackingWebhookView(ForwardEmailBaseWebhookView):
     """Handler for Forward Email bounce (delivery failure) webhooks"""
@@ -107,17 +118,30 @@ class ForwardEmailTrackingWebhookView(ForwardEmailBaseWebhookView):
         else:
             reject_reason = self.reject_reasons.get(category, RejectReason.BOUNCED)
 
+        timestamp = self._parse_timestamp(esp_event.get("bounced_at"))
+
+        # Forward Email's bounce payload identifies the send by its internal
+        # email_id (not the Message-ID header). A single send to multiple
+        # recipients shares one email_id, so combine it with the recipient to
+        # keep per-recipient events distinguishable for deduplication.
+        email_id = esp_event.get("email_id")
+        recipient = esp_event.get("recipient")
+        if email_id and recipient:
+            event_id = "%s-%s" % (email_id, recipient)
+        else:
+            event_id = email_id or None
+
         return AnymailTrackingEvent(
             event_type=event_type,
-            timestamp=None,  # Forward Email doesn't provide an event timestamp
-            # Forward Email's bounce payload identifies the message by its
-            # internal email_id (not the Message-ID header).
-            message_id=esp_event.get("email_id"),
-            event_id=esp_event.get("email_id"),
-            recipient=esp_event.get("recipient"),
+            timestamp=timestamp,
+            message_id=email_id,
+            event_id=event_id,
+            recipient=recipient,
             reject_reason=reject_reason,
             description=esp_event.get("message"),
-            mta_response=bounce.get("message"),
+            # Prefer the full SMTP server response; fall back to the parsed
+            # bounce reason if Forward Email didn't include a raw response.
+            mta_response=esp_event.get("response") or bounce.get("message"),
             esp_event=esp_event,
         )
 
@@ -140,10 +164,14 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
             message = self.message_from_parsed(esp_event)
 
         # Envelope (SMTP) sender/recipient come from the SMTP session.
-        # (mailFrom may be explicitly null for some automated/bounce messages.)
+        # Forward Email's inbound session uses `sender` for the MAIL FROM;
+        # fall back to mailFrom.address for other payload shapes. (mailFrom may
+        # be explicitly null for some automated/bounce messages.)
         session = esp_event.get("session") or {}
         mail_from = session.get("mailFrom") or {}
-        message.envelope_sender = mail_from.get("address") or None
+        message.envelope_sender = (
+            session.get("sender") or mail_from.get("address") or None
+        )
         recipients = esp_event.get("recipients") or []
         message.envelope_recipient = session.get("recipient") or (
             recipients[0] if recipients else None
@@ -161,7 +189,10 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
 
         return AnymailInboundEvent(
             event_type=EventType.INBOUND,
-            timestamp=None,
+            # SMTP arrival time, if Forward Email provided it.
+            timestamp=self._parse_timestamp(
+                session.get("arrivalDate") or session.get("arrivalTime")
+            ),
             event_id=esp_event.get("messageId") or message.get("Message-ID"),
             esp_event=esp_event,
             message=message,
@@ -182,11 +213,26 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
             return value
 
         headers = esp_event.get("headers")
-        # mailparser may serialize headers as a list of [name, value] pairs.
-        if isinstance(headers, dict):
+        raw_headers = None
+        if isinstance(headers, str):
+            # With `?raw=false`, Forward Email delivers headers as a raw block.
+            raw_headers = headers
+            headers = None
+        elif isinstance(headers, dict):
+            # mailparser may serialize headers as an object of name: value.
             headers = list(headers.items())
 
+        attachments = [
+            att
+            for att in (
+                self._construct_attachment(raw_att)
+                for raw_att in esp_event.get("attachments") or []
+            )
+            if att is not None
+        ]
+
         return AnymailInboundMessage.construct(
+            raw_headers=raw_headers,
             from_email=address_field(esp_event.get("from")),
             to=address_field(esp_event.get("to")),
             cc=address_field(esp_event.get("cc")),
@@ -194,4 +240,32 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
             headers=headers,
             text=esp_event.get("text"),
             html=esp_event.get("html"),
+            attachments=attachments or None,
+        )
+
+    @staticmethod
+    def _construct_attachment(att):
+        """Build an AnymailInboundMessage attachment from a parsed FE attachment."""
+        if not isinstance(att, dict):
+            return None
+        content = att.get("content")
+        base64 = False
+        if isinstance(content, dict) and content.get("type") == "Buffer":
+            # mailparser serializes Buffer content as {"type":"Buffer","data":[...]}
+            try:
+                content = bytes(content.get("data") or [])
+            except (TypeError, ValueError):
+                return None
+        elif isinstance(content, str):
+            # Assume base64-encoded content for string payloads.
+            base64 = True
+        elif not isinstance(content, (bytes, bytearray)):
+            return None
+
+        return AnymailInboundMessage.construct_attachment(
+            content_type=att.get("contentType") or "application/octet-stream",
+            content=content,
+            filename=att.get("filename"),
+            content_id=att.get("contentId") or att.get("cid"),
+            base64=base64,
         )

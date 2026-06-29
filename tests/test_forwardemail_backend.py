@@ -183,11 +183,12 @@ class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
 class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase):
     """Test backend support for Anymail added features"""
 
-    def test_envelope_sender(self):
+    def test_envelope_sender_unsupported(self):
+        # Forward Email manages the SMTP envelope itself and does not expose
+        # Nodemailer's envelope option, so envelope_sender can't be honored.
         self.message.envelope_sender = "bounce@example.com"
-        self.message.send()
-        data = self.get_api_call_json()
-        self.assertEqual(data["sender"], "bounce@example.com")
+        with self.assertRaisesMessage(AnymailUnsupportedFeature, "envelope_sender"):
+            self.message.send()
 
     def test_metadata(self):
         self.message.metadata = {"user_id": "123", "items": 6}
@@ -206,14 +207,16 @@ class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase)
             json.loads(data["headers"]["X-Tags"]), ["receipt", "reorder test 12"]
         )
 
-    def test_send_at(self):
+    def test_send_at_unsupported(self):
+        # Forward Email's `date` field only sets the message Date header; it is
+        # not a verified scheduled-delivery control, so send_at is unsupported.
         utc_plus_6 = get_fixed_timezone(6 * 60)
         with override_current_timezone(utc_plus_6):
-            send_at = datetime(2022, 10, 11, 12, 13, 14, 567000, tzinfo=utc_plus_6)
-            self.message.send_at = send_at
-            self.message.send()
-            data = self.get_api_call_json()
-            self.assertEqual(data["date"], "2022-10-11T12:13:14.567000+06:00")
+            self.message.send_at = datetime(
+                2022, 10, 11, 12, 13, 14, 567000, tzinfo=utc_plus_6
+            )
+            with self.assertRaisesMessage(AnymailUnsupportedFeature, "send_at"):
+                self.message.send()
 
     def test_esp_extra(self):
         self.message.esp_extra = {"priority": "high", "icalEvent": {"content": "..."}}
@@ -263,20 +266,16 @@ class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase)
             self.message.send()
 
     def test_send_status(self):
+        # Anymail's message_id is Forward Email's internal record id (its `id`),
+        # which is the value its bounce webhooks reference as `email_id`.
         msg = AnymailMessage("Subject", "Body", "from@example.com", ["to@example.com"])
         sent = msg.send()
         self.assertEqual(sent, 1)
         self.assertEqual(msg.anymail_status.status, {"queued"})
-        self.assertEqual(msg.anymail_status.message_id, "<abc123@forwardemail.net>")
+        self.assertEqual(msg.anymail_status.message_id, "5f1f3c...")
         recipient = msg.anymail_status.recipients["to@example.com"]
         self.assertEqual(recipient.status, "queued")
-        self.assertEqual(recipient.message_id, "<abc123@forwardemail.net>")
-
-    def test_status_message_id_fallback_to_id(self):
-        self.set_mock_response(raw=b'{"id": "fallback-id", "status": "queued"}')
-        msg = AnymailMessage("Subject", "Body", "from@example.com", ["to@example.com"])
-        msg.send()
-        self.assertEqual(msg.anymail_status.message_id, "fallback-id")
+        self.assertEqual(recipient.message_id, "5f1f3c...")
 
     def test_invalid_api_response(self):
         self.set_mock_response(raw=b'{"unexpected": "format"}')

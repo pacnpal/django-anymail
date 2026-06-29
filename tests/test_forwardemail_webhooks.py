@@ -83,6 +83,8 @@ class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
             "email_id": "60a...id",
             "recipient": "bounce@example.com",
             "message": "Message could not be delivered",
+            "response": "554 5.7.1 Message Sender Blocked By Receiving Server",
+            "bounced_at": "2022-10-11T12:13:14.000Z",
             "bounce": {
                 "action": "reject",
                 "message": "Message Sender Blocked By Receiving Server",
@@ -104,11 +106,28 @@ class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
         self.assertEqual(event.reject_reason, RejectReason.BLOCKED)
         self.assertEqual(event.recipient, "bounce@example.com")
         self.assertEqual(event.message_id, "60a...id")
-        self.assertEqual(event.event_id, "60a...id")
+        # event_id combines email_id + recipient so multi-recipient bounces
+        # remain distinguishable.
+        self.assertEqual(event.event_id, "60a...id-bounce@example.com")
+        # mta_response prefers the full SMTP server response.
         self.assertEqual(
-            event.mta_response, "Message Sender Blocked By Receiving Server"
+            event.mta_response, "554 5.7.1 Message Sender Blocked By Receiving Server"
         )
         self.assertEqual(event.description, "Message could not be delivered")
+        self.assertEqual(event.timestamp.isoformat(), "2022-10-11T12:13:14+00:00")
+
+    def test_bounce_falls_back_to_bounce_message(self):
+        # Without a top-level `response`, mta_response uses the parsed reason.
+        payload = {
+            "email_id": "id9",
+            "recipient": "x@example.com",
+            "bounce": {"message": "Mailbox full", "category": "recipient", "code": 552},
+        }
+        self.post_bounce(payload)
+        event = self.get_kwargs(self.tracking_handler)["event"]
+        self.assertEqual(event.mta_response, "Mailbox full")
+        self.assertIsNone(event.timestamp)
+        self.assertEqual(event.event_id, "id9-x@example.com")
 
     def test_soft_bounce_is_deferred(self):
         payload = {

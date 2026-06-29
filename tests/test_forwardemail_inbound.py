@@ -53,7 +53,9 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
             "recipients": ["inbound@example.com"],
             "session": {
                 "recipient": "inbound@example.com",
-                "mailFrom": {"address": "envelope-from@example.org"},
+                # Forward Email's inbound session uses `sender` for MAIL FROM.
+                "sender": "envelope-from@example.org",
+                "arrivalDate": "2022-10-11T12:13:14.000Z",
             },
             "messageId": "<CAabc123@mail.example.org>",
         }
@@ -69,6 +71,7 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
         event = kwargs["event"]
         self.assertIsInstance(event, AnymailInboundEvent)
         self.assertEqual(event.event_type, EventType.INBOUND)
+        self.assertEqual(event.timestamp.isoformat(), "2022-10-11T12:13:14+00:00")
         message = event.message
         self.assertIsInstance(message, AnymailInboundMessage)
         self.assertEqual(message.from_email.display_name, "Sender Name")
@@ -109,6 +112,46 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
         self.assertEqual(message.text, "Parsed body")
         self.assertEqual(message.html, "<p>Parsed body</p>")
         self.assertEqual(message.envelope_recipient, "inbound@example.com")
+
+    def test_inbound_parsed_raw_headers_and_attachments(self):
+        """With ?raw=false, headers may be a raw string and attachments a list."""
+        import base64
+
+        payload = {
+            "from": {"text": "Sender Name <from@example.org>"},
+            "to": {"text": "inbound@example.com"},
+            "subject": "Parsed subject",
+            "headers": (
+                "From: Sender Name <from@example.org>\r\n"
+                "Subject: Parsed subject\r\n"
+                "X-Custom: custom-value\r\n"
+            ),
+            "text": "Parsed body",
+            "recipients": ["inbound@example.com"],
+            "attachments": [
+                {
+                    "filename": "doc.txt",
+                    "contentType": "text/plain",
+                    "content": base64.b64encode(b"file contents").decode("ascii"),
+                },
+                {
+                    # mailparser may serialize binary content as a Buffer object.
+                    "filename": "raw.bin",
+                    "contentType": "application/octet-stream",
+                    "content": {"type": "Buffer", "data": [1, 2, 3]},
+                },
+            ],
+        }
+        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        self.assertEqual(response.status_code, 200)
+        message = self.get_kwargs(self.inbound_handler)["event"].message
+        self.assertEqual(message["X-Custom"], "custom-value")
+        attachments = message.attachments
+        self.assertEqual(len(attachments), 2)
+        self.assertEqual(attachments[0].get_filename(), "doc.txt")
+        self.assertEqual(attachments[0].get_content_text(), "file contents")
+        self.assertEqual(attachments[1].get_filename(), "raw.bin")
+        self.assertEqual(attachments[1].get_content_bytes(), b"\x01\x02\x03")
 
     def test_inbound_null_mailfrom(self):
         # mailFrom may be explicitly null (e.g. for bounce/automated messages);

@@ -122,6 +122,19 @@ anyway---see :ref:`unsupported-features`.
   Because Forward Email does not echo these headers back in its webhooks,
   tags and metadata are not reported with tracking events.
 
+**No envelope sender**
+  Forward Email manages the SMTP envelope itself and does not expose a way to
+  override the envelope (Return-Path) sender, so it does not support Anymail's
+  :attr:`~anymail.message.AnymailMessage.envelope_sender`.
+
+**No scheduled delivery (send_at)**
+  Forward Email's API has a ``date`` field, but that only sets the message
+  :mailheader:`Date` header---it is not a verified scheduled-delivery control.
+  To avoid silently sending immediately when a caller expects delayed delivery,
+  Anymail does not support :attr:`~anymail.message.AnymailMessage.send_at` for
+  Forward Email. (If you only want to set a future :mailheader:`Date` header,
+  you can pass ``date`` via :ref:`esp_extra <forwardemail-esp-extra>`.)
+
 **Status tracking is limited to delivery failures**
   Forward Email's tracking webhook reports *bounce* (delivery failure) events
   only. Anymail will report these as
