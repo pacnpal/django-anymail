@@ -155,12 +155,9 @@ class ForwardEmailTrackingWebhookView(ForwardEmailBaseWebhookView):
 
     @staticmethod
     def _decode_metadata_and_tags(headers):
-        """Extract Anymail metadata/tags from outbound X-Metadata/X-Tags headers.
-
-        Forward Email may echo the original message headers in the bounce
-        payload. Headers may be a dict, a list of [name, value] pairs, or a
-        list of {"name"/"key", "value"/"line"} objects; handle each defensively.
-        """
+        """Recover metadata/tags from echoed-back X-Metadata/X-Tags headers."""
+        # Headers may be a dict, a list of [name, value] pairs, or a list of
+        # {"name"/"key", "value"/"line"} objects; handle each defensively.
         metadata = {}
         tags = []
         items = []

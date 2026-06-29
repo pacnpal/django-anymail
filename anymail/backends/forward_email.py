@@ -61,12 +61,11 @@ class EmailBackend(AnymailRequestsBackend):
 
 class ForwardEmailPayload(RequestsPayload):
     def __init__(self, message, defaults, backend, *args, **kwargs):
-        self.recipients = []  # all recipients, for parse_recipient_status
+        self.recipients = []  # for parse_recipient_status
         headers = kwargs.pop("headers", {})
         headers["Content-Type"] = "application/json"
         headers["Accept"] = "application/json"
-        # Forward Email uses HTTP Basic auth with the API token as the
-        # username and an empty password.
+        # Forward Email uses HTTP Basic auth: API token as username, no password.
         auth = (backend.api_key, "")
         super().__init__(
             message, defaults, backend, headers=headers, auth=auth, *args, **kwargs
@@ -179,11 +178,17 @@ class ForwardEmailPayload(RequestsPayload):
             # User is responsible for formatting their own string
             self.data["date"] = send_at
 
-    # Forward Email doesn't support open/click tracking (set_track_clicks/opens),
-    # server-side templates or batch/merge sending (set_template_id, set_merge_*),
-    # or envelope_sender (it manages the SMTP envelope itself; Nodemailer's
-    # `sender` would only add an RFC Sender header). These raise unsupported_feature
-    # via the base payload.
+    # Forward Email doesn't support open or click tracking.
+    # def set_track_clicks(self, track_clicks):
+    # def set_track_opens(self, track_opens):
+
+    # Forward Email doesn't support server-side templates or batch/merge sending.
+    # def set_template_id(self, template_id):
+    # def set_merge_data(self, merge_data):
+
+    # Forward Email manages the SMTP envelope itself, so envelope_sender is
+    # unsupported. (Nodemailer's `sender` would only set an RFC Sender header.)
+    # def set_envelope_sender(self, email):
 
     def set_esp_extra(self, extra):
         self.data.update(extra)
