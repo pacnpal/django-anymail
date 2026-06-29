@@ -45,6 +45,7 @@ jobs:
         config:
           - { tox: django60-py314-amazon_ses, python: "3.14" }
           - { tox: django60-py314-brevo, python: "3.14" }
+          - { tox: django60-py314-forwardemail, python: "3.14" }
           - { tox: django60-py314-mailersend, python: "3.14" }
           - { tox: django60-py314-mailgun, python: "3.14" }
           - { tox: django60-py314-mailjet, python: "3.14" }
@@ -88,6 +89,8 @@ jobs:
           ANYMAIL_TEST_AMAZON_SES_SECRET_ACCESS_KEY: ${{ secrets.ANYMAIL_TEST_AMAZON_SES_SECRET_ACCESS_KEY }}
           ANYMAIL_TEST_BREVO_API_KEY: ${{ secrets.ANYMAIL_TEST_BREVO_API_KEY }}
           ANYMAIL_TEST_BREVO_DOMAIN: ${{ vars.ANYMAIL_TEST_BREVO_DOMAIN }}
+          ANYMAIL_TEST_FORWARDEMAIL_API_KEY: ${{ secrets.ANYMAIL_TEST_FORWARDEMAIL_API_KEY }}
+          ANYMAIL_TEST_FORWARDEMAIL_DOMAIN: ${{ vars.ANYMAIL_TEST_FORWARDEMAIL_DOMAIN }}
           ANYMAIL_TEST_MAILERSEND_API_TOKEN: ${{ secrets.ANYMAIL_TEST_MAILERSEND_API_TOKEN }}
           ANYMAIL_TEST_MAILERSEND_DOMAIN: ${{ secrets.ANYMAIL_TEST_MAILERSEND_DOMAIN }}
           ANYMAIL_TEST_MAILGUN_API_KEY: ${{ secrets.ANYMAIL_TEST_MAILGUN_API_KEY }}

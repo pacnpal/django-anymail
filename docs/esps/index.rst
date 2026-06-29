@@ -14,6 +14,7 @@ and notes about any quirks or limitations:
 
    amazon_ses
    brevo
+   forwardemail
    mailersend
    mailgun
    mailjet
