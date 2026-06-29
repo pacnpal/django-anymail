@@ -25,7 +25,7 @@ keywords = [
     "email tracking", "inbound email", "webhook",
     "Amazon SES", "AWS SES", "Simple Email Service",
     "Brevo", "SendinBlue",
-    "Forward Email", "ForwardEmail",
+    "Forward Email",
     "MailerSend",
     "Mailgun", "Mailjet", "Sinch",
     "Mailtrap",
@@ -76,7 +76,7 @@ dependencies = [
 # (Do not use underscores in extra names: they get normalized to hyphens.)
 amazon-ses = ["boto3>=1.24.6"]
 brevo = []
-forwardemail = []
+forward-email = []
 mailersend = []
 mailgun = []
 mailjet = []

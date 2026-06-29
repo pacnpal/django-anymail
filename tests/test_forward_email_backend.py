@@ -22,11 +22,11 @@ from .utils import (
 )
 
 
-@tag("forwardemail")
+@tag("forward_email")
 @override_settings(
-    EMAIL_BACKEND="anymail.backends.forwardemail.EmailBackend",
+    EMAIL_BACKEND="anymail.backends.forward_email.EmailBackend",
     ANYMAIL={
-        "FORWARDEMAIL_API_KEY": "test_api_key",
+        "FORWARD_EMAIL_API_KEY": "test_api_key",
     },
 )
 class ForwardEmailBackendMockAPITestCase(RequestsBackendMockAPITestCase):
@@ -43,7 +43,7 @@ class ForwardEmailBackendMockAPITestCase(RequestsBackendMockAPITestCase):
         )
 
 
-@tag("forwardemail")
+@tag("forward_email")
 class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
     """Test backend support for Django standard email features"""
 
@@ -112,6 +112,14 @@ class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
         self.assertEqual(data["messageId"], "<mycustommsgid@example.com>")
         self.assertNotIn("Message-ID", data.get("headers", {}))
 
+    def test_date_header_uses_dedicated_field(self):
+        # Date is protected in Nodemailer, like Message-ID.
+        self.message.extra_headers = {"Date": "Tue, 11 Oct 2022 12:13:14 +0000"}
+        self.message.send()
+        data = self.get_api_call_json()
+        self.assertEqual(data["date"], "Tue, 11 Oct 2022 12:13:14 +0000")
+        self.assertNotIn("Date", data.get("headers", {}))
+
     def test_html_message(self):
         text_content = "This is an important message."
         html_content = "<p>This is an <strong>important</strong> message.</p>"
@@ -134,6 +142,14 @@ class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
         data = self.get_api_call_json()
         self.assertNotIn("text", data)
         self.assertEqual(data["html"], html_content)
+
+    def test_amp_alternative(self):
+        # Forward Email (Nodemailer) supports an AMP part via the `amp` field.
+        amp_content = "<!doctype html><html amp4email><body>AMP</body></html>"
+        self.message.attach_alternative(amp_content, "text/x-amp-html")
+        self.message.send()
+        data = self.get_api_call_json()
+        self.assertEqual(data["amp"], amp_content)
 
     def test_extra_headers_serialize_int(self):
         self.message.extra_headers = {"X-Num": 3}
@@ -182,7 +198,7 @@ class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
         self.assertEqual(sent, 0)
 
 
-@tag("forwardemail")
+@tag("forward_email")
 class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase):
     """Test backend support for Anymail added features"""
 
@@ -301,8 +317,8 @@ class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase)
             self.message.send()
 
 
-@tag("forwardemail")
-@override_settings(EMAIL_BACKEND="anymail.backends.forwardemail.EmailBackend")
+@tag("forward_email")
+@override_settings(EMAIL_BACKEND="anymail.backends.forward_email.EmailBackend")
 class ForwardEmailBackendConfigurationTests(AnymailTestMixin, SimpleTestCase):
     """Test various configuration options"""
 
@@ -311,26 +327,26 @@ class ForwardEmailBackendConfigurationTests(AnymailTestMixin, SimpleTestCase):
 
         with self.assertRaises(ImproperlyConfigured) as cm:
             mail.send_mail("Subject", "Body", "from@example.com", ["to@example.com"])
-        self.assertRegex(str(cm.exception), r"\bFORWARDEMAIL_API_KEY\b")
+        self.assertRegex(str(cm.exception), r"\bFORWARD_EMAIL_API_KEY\b")
 
     @override_settings(
         ANYMAIL={
-            "FORWARDEMAIL_API_KEY": "test_api_key",
-            "FORWARDEMAIL_API_URL": "https://example.com/custom/v9",
+            "FORWARD_EMAIL_API_KEY": "test_api_key",
+            "FORWARD_EMAIL_API_URL": "https://example.com/custom/v9",
         }
     )
     def test_api_url_override(self):
         """A custom api_url is honored, and a trailing slash is added if missing"""
-        from anymail.backends.forwardemail import EmailBackend
+        from anymail.backends.forward_email import EmailBackend
 
         backend = EmailBackend()
         self.assertEqual(backend.api_url, "https://example.com/custom/v9/")
 
 
-@tag("forwardemail")
+@tag("forward_email")
 @override_settings(
-    EMAIL_BACKEND="anymail.backends.forwardemail.EmailBackend",
-    ANYMAIL={"FORWARDEMAIL_API_KEY": "test_api_key"},
+    EMAIL_BACKEND="anymail.backends.forward_email.EmailBackend",
+    ANYMAIL={"FORWARD_EMAIL_API_KEY": "test_api_key"},
 )
 class ForwardEmailBackendSessionSharingTestCase(SessionSharingTestCases):
     """Requests session sharing tests"""

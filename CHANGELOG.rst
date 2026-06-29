@@ -36,7 +36,7 @@ Features
 * **Forward Email:** Add support for this ESP, including email sending,
   status tracking (delivery failure/bounce) webhooks, and inbound email
   handling. See `the docs
-  <https://anymail.dev/en/stable/esps/forwardemail/>`__ for details.
+  <https://anymail.dev/en/stable/esps/forward_email/>`__ for details.
 
 
 v15.0

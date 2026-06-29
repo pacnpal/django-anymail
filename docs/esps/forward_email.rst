@@ -1,4 +1,4 @@
-.. _forwardemail-backend:
+.. _forward-email-backend:
 
 Forward Email
 =============
@@ -22,14 +22,14 @@ To use Anymail's Forward Email backend, set:
 
   .. code-block:: python
 
-      EMAIL_BACKEND = "anymail.backends.forwardemail.EmailBackend"
+      EMAIL_BACKEND = "anymail.backends.forward_email.EmailBackend"
 
 in your settings.py.
 
 
-.. setting:: ANYMAIL_FORWARDEMAIL_API_KEY
+.. setting:: ANYMAIL_FORWARD_EMAIL_API_KEY
 
-.. rubric:: FORWARDEMAIL_API_KEY
+.. rubric:: FORWARD_EMAIL_API_KEY
 
 Required for sending. An API token from your Forward Email
 `My Account → Security`_ page. Forward Email authenticates the sending API
@@ -40,28 +40,28 @@ Anymail handles this for you.
 
     Forward Email also allows authenticating with *alias credentials* (an alias
     email address as the username and its generated password). That requires a
-    username **and** password, which Anymail's single ``FORWARDEMAIL_API_KEY``
+    username **and** password, which Anymail's single ``FORWARD_EMAIL_API_KEY``
     setting can't express, so use an API token here. (Don't paste an alias
-    password into ``FORWARDEMAIL_API_KEY``---it would be sent as the username
+    password into ``FORWARD_EMAIL_API_KEY``---it would be sent as the username
     with an empty password and fail to authenticate.)
 
   .. code-block:: python
 
       ANYMAIL = {
           ...
-          "FORWARDEMAIL_API_KEY": "...",
+          "FORWARD_EMAIL_API_KEY": "...",
       }
 
-Anymail will also look for ``FORWARDEMAIL_API_KEY`` at the root of the settings
-file if neither ``ANYMAIL["FORWARDEMAIL_API_KEY"]`` nor
-``ANYMAIL_FORWARDEMAIL_API_KEY`` is set.
+Anymail will also look for ``FORWARD_EMAIL_API_KEY`` at the root of the settings
+file if neither ``ANYMAIL["FORWARD_EMAIL_API_KEY"]`` nor
+``ANYMAIL_FORWARD_EMAIL_API_KEY`` is set.
 
 .. _My Account → Security: https://forwardemail.net/en/my-account/security
 
 
-.. setting:: ANYMAIL_FORWARDEMAIL_WEBHOOK_SIGNING_KEY
+.. setting:: ANYMAIL_FORWARD_EMAIL_WEBHOOK_SIGNING_KEY
 
-.. rubric:: FORWARDEMAIL_WEBHOOK_SIGNING_KEY
+.. rubric:: FORWARD_EMAIL_WEBHOOK_SIGNING_KEY
 
 The "Webhook Signature Payload Verification Key" for your Forward Email domain,
 used to verify that webhook posts (both status tracking and inbound) actually
@@ -75,26 +75,26 @@ this key at any time.
 
       ANYMAIL = {
           ...
-          "FORWARDEMAIL_WEBHOOK_SIGNING_KEY": "...",
+          "FORWARD_EMAIL_WEBHOOK_SIGNING_KEY": "...",
       }
 
 This is separate from Anymail's
 :setting:`WEBHOOK_SECRET <ANYMAIL_WEBHOOK_SECRET>` setting. You can secure
 Forward Email's webhooks with the signing key, with Anymail's shared secret,
-or both. See :ref:`forwardemail-webhooks` below.
+or both. See :ref:`forward-email-webhooks` below.
 
 
-.. setting:: ANYMAIL_FORWARDEMAIL_API_URL
+.. setting:: ANYMAIL_FORWARD_EMAIL_API_URL
 
-.. rubric:: FORWARDEMAIL_API_URL
+.. rubric:: FORWARD_EMAIL_API_URL
 
 The base url for calling the Forward Email API.
 
-The default is ``FORWARDEMAIL_API_URL = "https://api.forwardemail.net/v1/"``.
+The default is ``FORWARD_EMAIL_API_URL = "https://api.forwardemail.net/v1/"``.
 (It's unlikely you would need to change this.)
 
 
-.. _forwardemail-quirks:
+.. _forward-email-quirks:
 
 Limitations and quirks
 ----------------------
@@ -151,7 +151,7 @@ anyway---see :ref:`unsupported-features`.
   (hard failures) or ``deferred`` (soft/temporary failures).
 
 
-.. _forwardemail-esp-extra:
+.. _forward-email-esp-extra:
 
 esp_extra support
 -----------------
@@ -174,7 +174,7 @@ Anymail's normalized API. Example:
 .. _Nodemailer: https://nodemailer.com/message/
 
 
-.. _forwardemail-webhooks:
+.. _forward-email-webhooks:
 
 Status tracking and inbound webhooks
 ------------------------------------
@@ -184,8 +184,8 @@ Anymail's normalized :ref:`status tracking <event-tracking>` and
 
 Forward Email signs every webhook post with an ``X-Webhook-Signature`` header
 (an HMAC-SHA256 of the request body). To verify these signatures, set
-:setting:`FORWARDEMAIL_WEBHOOK_SIGNING_KEY
-<ANYMAIL_FORWARDEMAIL_WEBHOOK_SIGNING_KEY>` to your domain's "Webhook Signature
+:setting:`FORWARD_EMAIL_WEBHOOK_SIGNING_KEY
+<ANYMAIL_FORWARD_EMAIL_WEBHOOK_SIGNING_KEY>` to your domain's "Webhook Signature
 Payload Verification Key." You can secure the webhooks with this signing key,
 with Anymail's shared :setting:`WEBHOOK_SECRET <ANYMAIL_WEBHOOK_SECRET>`, or
 both. Signature validation is recommended.
@@ -195,12 +195,12 @@ both. Signature validation is recommended.
 In your Forward Email domain settings (My Account → Domains → Settings →
 "Bounce Webhook"), set the bounce webhook URL to:
 
-    :samp:`https://{yoursite.example.com}/anymail/forwardemail/tracking/`
+    :samp:`https://{yoursite.example.com}/anymail/forward_email/tracking/`
 
 Or, if you are using Anymail's :setting:`WEBHOOK_SECRET
 <ANYMAIL_WEBHOOK_SECRET>`, include the *random:random* shared secret:
 
-    :samp:`https://{random}:{random}@{yoursite.example.com}/anymail/forwardemail/tracking/`
+    :samp:`https://{random}:{random}@{yoursite.example.com}/anymail/forward_email/tracking/`
 
 Forward Email will POST to this URL whenever an outbound message bounces.
 Anymail reports these as ``bounced`` or ``deferred`` tracking events. The
@@ -213,11 +213,11 @@ Forward Email can forward incoming mail for an alias to a webhook URL. Set the
 alias's forwarding destination to your inbound URL (e.g., in a domain's alias
 configuration or a ``forward-email`` DNS record):
 
-    :samp:`https://{yoursite.example.com}/anymail/forwardemail/inbound/`
+    :samp:`https://{yoursite.example.com}/anymail/forward_email/inbound/`
 
 Or with Anymail's shared secret:
 
-    :samp:`https://{random}:{random}@{yoursite.example.com}/anymail/forwardemail/inbound/`
+    :samp:`https://{random}:{random}@{yoursite.example.com}/anymail/forward_email/inbound/`
 
 Forward Email POSTs the full message (including raw MIME) to this URL. Anymail
 parses it into an :class:`~anymail.inbound.AnymailInboundMessage` delivered with

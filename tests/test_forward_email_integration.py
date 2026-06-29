@@ -10,26 +10,26 @@ from anymail.message import AnymailMessage
 
 from .utils import AnymailTestMixin, sample_image_path
 
-ANYMAIL_TEST_FORWARDEMAIL_API_KEY = os.getenv("ANYMAIL_TEST_FORWARDEMAIL_API_KEY")
-ANYMAIL_TEST_FORWARDEMAIL_DOMAIN = os.getenv("ANYMAIL_TEST_FORWARDEMAIL_DOMAIN")
+ANYMAIL_TEST_FORWARD_EMAIL_API_KEY = os.getenv("ANYMAIL_TEST_FORWARD_EMAIL_API_KEY")
+ANYMAIL_TEST_FORWARD_EMAIL_DOMAIN = os.getenv("ANYMAIL_TEST_FORWARD_EMAIL_DOMAIN")
 
 
-@tag("forwardemail", "live")
+@tag("forward_email", "live")
 @unittest.skipUnless(
-    ANYMAIL_TEST_FORWARDEMAIL_API_KEY and ANYMAIL_TEST_FORWARDEMAIL_DOMAIN,
-    "Set ANYMAIL_TEST_FORWARDEMAIL_API_KEY and ANYMAIL_TEST_FORWARDEMAIL_DOMAIN "
+    ANYMAIL_TEST_FORWARD_EMAIL_API_KEY and ANYMAIL_TEST_FORWARD_EMAIL_DOMAIN,
+    "Set ANYMAIL_TEST_FORWARD_EMAIL_API_KEY and ANYMAIL_TEST_FORWARD_EMAIL_DOMAIN "
     "environment variables to run Forward Email integration tests",
 )
 @override_settings(
-    ANYMAIL_FORWARDEMAIL_API_KEY=ANYMAIL_TEST_FORWARDEMAIL_API_KEY,
-    EMAIL_BACKEND="anymail.backends.forwardemail.EmailBackend",
+    ANYMAIL_FORWARD_EMAIL_API_KEY=ANYMAIL_TEST_FORWARD_EMAIL_API_KEY,
+    EMAIL_BACKEND="anymail.backends.forward_email.EmailBackend",
 )
 class ForwardEmailBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
     """Forward Email API integration tests
 
     These tests run against the **live** Forward Email API, using the environment
-    variable ``ANYMAIL_TEST_FORWARDEMAIL_API_KEY`` as the API key and
-    ``ANYMAIL_TEST_FORWARDEMAIL_DOMAIN`` to construct sender addresses. If those
+    variable ``ANYMAIL_TEST_FORWARD_EMAIL_API_KEY`` as the API key and
+    ``ANYMAIL_TEST_FORWARD_EMAIL_DOMAIN`` to construct sender addresses. If those
     variables are not set, these tests won't run.
 
     Forward Email only allows sending from a verified domain/alias.
@@ -37,7 +37,7 @@ class ForwardEmailBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
 
     def setUp(self):
         super().setUp()
-        self.from_email = "test@%s" % ANYMAIL_TEST_FORWARDEMAIL_DOMAIN
+        self.from_email = "test@%s" % ANYMAIL_TEST_FORWARD_EMAIL_DOMAIN
         self.message = AnymailMessage(
             "Anymail Forward Email integration test",
             "Text content",
@@ -55,7 +55,9 @@ class ForwardEmailBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
         message_id = anymail_status.recipients["test+to1@anymail.dev"].message_id
 
         self.assertEqual(sent_status, "queued")
-        self.assertGreater(len(message_id), 0)
+        # Forward Email returns a record id, but tolerate None (a 2xx accept
+        # without an id is still a successful send) rather than raising TypeError.
+        self.assertTrue(message_id is None or len(message_id) > 0)
         self.assertEqual(anymail_status.status, {sent_status})
         self.assertEqual(anymail_status.message_id, message_id)
 
@@ -84,13 +86,20 @@ class ForwardEmailBackendIntegrationTests(AnymailTestMixin, SimpleTestCase):
             " and image: <img src='cid:%s'></p>" % cid,
             "text/html",
         )
+        message.attach_alternative(
+            "<!doctype html><html amp4email><head><meta charset=utf-8>"
+            "<style amp4email-boilerplate></style></head>"
+            "<body>AMP content</body></html>",
+            "text/x-amp-html",
+        )
 
         message.send()
         # Forward Email always queues:
         self.assertEqual(message.anymail_status.status, {"queued"})
-        self.assertGreater(len(message.anymail_status.message_id), 0)
+        message_id = message.anymail_status.message_id
+        self.assertTrue(message_id is None or len(message_id) > 0)
 
-    @override_settings(ANYMAIL_FORWARDEMAIL_API_KEY="Hey, that's not an API key!")
+    @override_settings(ANYMAIL_FORWARD_EMAIL_API_KEY="Hey, that's not an API key!")
     def test_invalid_api_key(self):
         with self.assertRaises(AnymailAPIError) as cm:
             self.message.send()

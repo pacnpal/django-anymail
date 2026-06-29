@@ -12,7 +12,7 @@ from .webhook_cases import WebhookBasicAuthTestCase, WebhookTestCase
 TEST_SIGNING_KEY = "test_webhook_signing_key"
 
 
-def forwardemail_signature(body, key=TEST_SIGNING_KEY):
+def forward_email_signature(body, key=TEST_SIGNING_KEY):
     if isinstance(body, str):
         body = body.encode("utf-8")
     return hmac.new(key.encode("utf-8"), body, hashlib.sha256).hexdigest()
@@ -24,7 +24,7 @@ class ForwardEmailWebhookTestCase(WebhookTestCase):
         body = json.dumps(json_data)
         headers = {}
         if signing_key is not None:
-            headers["X-Webhook-Signature"] = forwardemail_signature(body, signing_key)
+            headers["X-Webhook-Signature"] = forward_email_signature(body, signing_key)
         return self.client.post(
             url,
             content_type="application/json",
@@ -33,12 +33,12 @@ class ForwardEmailWebhookTestCase(WebhookTestCase):
         )
 
 
-@tag("forwardemail")
-@override_settings(ANYMAIL_FORWARDEMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
+@tag("forward_email")
+@override_settings(ANYMAIL_FORWARD_EMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
 class ForwardEmailWebhookSignatureTestCase(ForwardEmailWebhookTestCase):
     def test_valid_signature(self):
         response = self.client_post_signed(
-            "/anymail/forwardemail/tracking/",
+            "/anymail/forward_email/tracking/",
             {"email_id": "abc", "recipient": "to@example.com", "bounce": {}},
         )
         self.assertEqual(response.status_code, 200)
@@ -46,7 +46,7 @@ class ForwardEmailWebhookSignatureTestCase(ForwardEmailWebhookTestCase):
     def test_invalid_signature(self):
         body = json.dumps({"email_id": "abc"})
         response = self.client.post(
-            "/anymail/forwardemail/tracking/",
+            "/anymail/forward_email/tracking/",
             content_type="application/json",
             data=body.encode("utf-8"),
             headers={"X-Webhook-Signature": "not-the-right-signature"},
@@ -56,7 +56,7 @@ class ForwardEmailWebhookSignatureTestCase(ForwardEmailWebhookTestCase):
     def test_missing_signature(self):
         body = json.dumps({"email_id": "abc"})
         response = self.client.post(
-            "/anymail/forwardemail/tracking/",
+            "/anymail/forward_email/tracking/",
             content_type="application/json",
             data=body.encode("utf-8"),
         )
@@ -64,25 +64,25 @@ class ForwardEmailWebhookSignatureTestCase(ForwardEmailWebhookTestCase):
 
     def test_signing_key_as_view_param(self):
         """The signing key can be provided as a view init kwarg"""
-        from anymail.webhooks.forwardemail import ForwardEmailTrackingWebhookView
+        from anymail.webhooks.forward_email import ForwardEmailTrackingWebhookView
 
         view = ForwardEmailTrackingWebhookView(webhook_signing_key="other_key")
         self.assertIsNotNone(view._webhook_signing_key)
 
     def test_empty_signing_key_treated_as_unset(self):
         # A blank key must behave like no key (and not suppress basic-auth checks).
-        from anymail.webhooks.forwardemail import ForwardEmailTrackingWebhookView
+        from anymail.webhooks.forward_email import ForwardEmailTrackingWebhookView
 
         view = ForwardEmailTrackingWebhookView(webhook_signing_key="")
         self.assertIsNone(view._webhook_signing_key)
         self.assertTrue(view.warn_if_no_basic_auth)
 
 
-@tag("forwardemail")
-@override_settings(ANYMAIL_FORWARDEMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
+@tag("forward_email")
+@override_settings(ANYMAIL_FORWARD_EMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
 class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
     def post_bounce(self, payload):
-        response = self.client_post_signed("/anymail/forwardemail/tracking/", payload)
+        response = self.client_post_signed("/anymail/forward_email/tracking/", payload)
         self.assertEqual(response.status_code, 200)
         return response
 
@@ -106,7 +106,7 @@ class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
             self.tracking_handler,
             sender=ANY,
             event=ANY,
-            esp_name="ForwardEmail",
+            esp_name="Forward Email",
         )
         event = kwargs["event"]
         self.assertIsInstance(event, AnymailTrackingEvent)
@@ -114,9 +114,11 @@ class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
         self.assertEqual(event.reject_reason, RejectReason.BLOCKED)
         self.assertEqual(event.recipient, "bounce@example.com")
         self.assertEqual(event.message_id, "60a...id")
-        # event_id combines email_id + recipient so multi-recipient bounces
-        # remain distinguishable.
-        self.assertEqual(event.event_id, "60a...id-bounce@example.com")
+        # event_id combines email_id + recipient + bounced_at so per-recipient
+        # and deferred-then-bounced events remain distinguishable.
+        self.assertEqual(
+            event.event_id, "60a...id-bounce@example.com-2022-10-11T12:13:14.000Z"
+        )
         # mta_response prefers the full SMTP server response.
         self.assertEqual(
             event.mta_response, "554 5.7.1 Message Sender Blocked By Receiving Server"
@@ -205,13 +207,13 @@ class ForwardEmailTrackingWebhookTestCase(ForwardEmailWebhookTestCase):
         self.assertEqual(event.reject_reason, RejectReason.BOUNCED)
 
 
-@tag("forwardemail")
+@tag("forward_email")
 class ForwardEmailTrackingWebhookBasicAuthTestCase(WebhookBasicAuthTestCase):
     should_warn_if_no_auth = True
 
     def call_webhook(self):
         return self.client.post(
-            "/anymail/forwardemail/tracking/",
+            "/anymail/forward_email/tracking/",
             content_type="application/json",
             data=json.dumps({"email_id": "abc", "bounce": {}}),
         )

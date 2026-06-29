@@ -9,7 +9,7 @@ class EmailBackend(AnymailRequestsBackend):
     Forward Email (forwardemail.net) API Email Backend
     """
 
-    esp_name = "ForwardEmail"
+    esp_name = "Forward Email"
 
     def __init__(self, **kwargs):
         """Init options from Django settings"""
@@ -112,11 +112,13 @@ class ForwardEmailPayload(RequestsPayload):
             header_value = (
                 str(value) if isinstance(value, BASIC_NUMERIC_TYPES) else value
             )
+            # Message-ID and Date are protected headers in Nodemailer/Forward
+            # Email: a value in the generic `headers` object is overwritten with
+            # a generated one, so route them to their dedicated fields instead.
             if key.lower() == "message-id":
-                # Message-ID is a protected header in Nodemailer/Forward Email:
-                # it must be set via the dedicated `messageId` field, or it will
-                # be overwritten with a generated value.
                 self.data["messageId"] = header_value
+            elif key.lower() == "date":
+                self.data["date"] = header_value
             else:
                 self.data.setdefault("headers", {})[key] = header_value
 
@@ -129,6 +131,15 @@ class ForwardEmailPayload(RequestsPayload):
             # or html body + alternative
             self.unsupported_feature("multiple html parts")
         self.data["html"] = body
+
+    def add_alternative(self, content, mimetype):
+        # Forward Email (Nodemailer) supports an AMP alternative via `amp`.
+        if mimetype.lower() == "text/x-amp-html":
+            if "amp" in self.data:
+                self.unsupported_feature("multiple amp parts")
+            self.data["amp"] = content
+        else:
+            super().add_alternative(content, mimetype)
 
     def make_attachment(self, attachment):
         """Returns Forward Email (Nodemailer) attachment dict for attachment"""

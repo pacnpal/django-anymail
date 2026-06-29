@@ -5,7 +5,7 @@ from .webhooks.amazon_ses import (
     AmazonSESTrackingWebhookView,
 )
 from .webhooks.brevo import BrevoInboundWebhookView, BrevoTrackingWebhookView
-from .webhooks.forwardemail import (
+from .webhooks.forward_email import (
     ForwardEmailInboundWebhookView,
     ForwardEmailTrackingWebhookView,
 )
@@ -44,9 +44,9 @@ urlpatterns = [
         name="brevo_inbound_webhook",
     ),
     path(
-        "forwardemail/inbound/",
+        "forward_email/inbound/",
         ForwardEmailInboundWebhookView.as_view(),
-        name="forwardemail_inbound_webhook",
+        name="forward_email_inbound_webhook",
     ),
     path(
         "mailersend/inbound/",
@@ -104,9 +104,9 @@ urlpatterns = [
         name="brevo_tracking_webhook",
     ),
     path(
-        "forwardemail/tracking/",
+        "forward_email/tracking/",
         ForwardEmailTrackingWebhookView.as_view(),
-        name="forwardemail_tracking_webhook",
+        name="forward_email_tracking_webhook",
     ),
     path(
         "mailersend/tracking/",

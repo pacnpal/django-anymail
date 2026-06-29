@@ -24,7 +24,7 @@ SAMPLE_RAW_MIME = dedent("""\
     """)
 
 
-def forwardemail_signature(body, key=TEST_SIGNING_KEY):
+def forward_email_signature(body, key=TEST_SIGNING_KEY):
     if isinstance(body, str):
         body = body.encode("utf-8")
     return hmac.new(key.encode("utf-8"), body, hashlib.sha256).hexdigest()
@@ -35,7 +35,7 @@ class ForwardEmailInboundTestCase(WebhookTestCase):
         body = json.dumps(json_data)
         headers = {}
         if signing_key is not None:
-            headers["X-Webhook-Signature"] = forwardemail_signature(body, signing_key)
+            headers["X-Webhook-Signature"] = forward_email_signature(body, signing_key)
         return self.client.post(
             url,
             content_type="application/json",
@@ -44,8 +44,8 @@ class ForwardEmailInboundTestCase(WebhookTestCase):
         )
 
 
-@tag("forwardemail")
-@override_settings(ANYMAIL_FORWARDEMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
+@tag("forward_email")
+@override_settings(ANYMAIL_FORWARD_EMAIL_WEBHOOK_SIGNING_KEY=TEST_SIGNING_KEY)
 class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
     def test_inbound_raw_mime(self):
         payload = {
@@ -59,14 +59,14 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
             },
             "messageId": "<CAabc123@mail.example.org>",
         }
-        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
         self.assertEqual(response.status_code, 200)
 
         kwargs = self.assert_handler_called_once_with(
             self.inbound_handler,
             sender=ANY,
             event=ANY,
-            esp_name="ForwardEmail",
+            esp_name="Forward Email",
         )
         event = kwargs["event"]
         self.assertIsInstance(event, AnymailInboundEvent)
@@ -88,7 +88,7 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
             "spamScore": 7.5,
             "isSpam": True,
         }
-        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
         self.assertEqual(response.status_code, 200)
         message = self.get_kwargs(self.inbound_handler)["event"].message
         self.assertEqual(message.spam_score, 7.5)
@@ -104,7 +104,7 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
             "html": "<p>Parsed body</p>",
             "recipients": ["inbound@example.com"],
         }
-        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
         self.assertEqual(response.status_code, 200)
         message = self.get_kwargs(self.inbound_handler)["event"].message
         self.assertEqual(message.subject, "Parsed subject")
@@ -129,7 +129,7 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
             "text": "Parsed body",
             "recipients": ["inbound@example.com"],
         }
-        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
         self.assertEqual(response.status_code, 200)
         message = self.get_kwargs(self.inbound_handler)["event"].message
         self.assertEqual(message.from_email.addr_spec, "from@example.org")
@@ -166,7 +166,7 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
                 },
             ],
         }
-        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
         self.assertEqual(response.status_code, 200)
         message = self.get_kwargs(self.inbound_handler)["event"].message
         self.assertEqual(message["X-Custom"], "custom-value")
@@ -185,16 +185,32 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
             "recipients": ["inbound@example.com"],
             "session": {"mailFrom": None, "recipient": "inbound@example.com"},
         }
-        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
         self.assertEqual(response.status_code, 200)
         message = self.get_kwargs(self.inbound_handler)["event"].message
         self.assertIsNone(message.envelope_sender)
         self.assertEqual(message.envelope_recipient, "inbound@example.com")
 
+    def test_inbound_multiple_recipients(self):
+        # One POST grouping several recipients yields one event per recipient.
+        payload = {
+            "raw": SAMPLE_RAW_MIME,
+            "recipients": ["one@example.com", "two@example.com"],
+        }
+        response = self.client_post_signed("/anymail/forward_email/inbound/", payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.inbound_handler.call_count, 2)
+        events = [c.kwargs["event"] for c in self.inbound_handler.call_args_list]
+        self.assertEqual(
+            [e.message.envelope_recipient for e in events],
+            ["one@example.com", "two@example.com"],
+        )
+        self.assertNotEqual(events[0].event_id, events[1].event_id)
+
     def test_invalid_signature_rejected(self):
         body = json.dumps({"raw": SAMPLE_RAW_MIME})
         response = self.client.post(
-            "/anymail/forwardemail/inbound/",
+            "/anymail/forward_email/inbound/",
             content_type="application/json",
             data=body.encode("utf-8"),
             headers={"X-Webhook-Signature": "wrong"},
@@ -202,13 +218,13 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
         self.assertEqual(response.status_code, 400)
 
 
-@tag("forwardemail")
+@tag("forward_email")
 class ForwardEmailInboundBasicAuthTestCase(WebhookBasicAuthTestCase):
     should_warn_if_no_auth = True
 
     def call_webhook(self):
         return self.client.post(
-            "/anymail/forwardemail/inbound/",
+            "/anymail/forward_email/inbound/",
             content_type="application/json",
             data=json.dumps({"raw": SAMPLE_RAW_MIME}),
         )

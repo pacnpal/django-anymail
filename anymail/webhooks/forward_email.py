@@ -22,7 +22,7 @@ from .base import AnymailBaseWebhookView
 class ForwardEmailBaseWebhookView(AnymailBaseWebhookView):
     """Base view class for Forward Email webhooks"""
 
-    esp_name = "ForwardEmail"
+    esp_name = "Forward Email"
 
     # (Declaring class attr allows override by kwargs in View.as_view.)
     webhook_signing_key = None
@@ -120,18 +120,17 @@ class ForwardEmailTrackingWebhookView(ForwardEmailBaseWebhookView):
         else:
             reject_reason = self.reject_reasons.get(category, RejectReason.BOUNCED)
 
-        timestamp = self._parse_timestamp(esp_event.get("bounced_at"))
+        bounced_at = esp_event.get("bounced_at")
+        timestamp = self._parse_timestamp(bounced_at)
 
         # Forward Email's bounce payload identifies the send by its internal
-        # email_id (not the Message-ID header). A single send to multiple
-        # recipients shares one email_id, so combine it with the recipient to
-        # keep per-recipient events distinguishable for deduplication.
+        # email_id (not the Message-ID header), shared across recipients. Combine
+        # it with the recipient and the failure time so a deferral and a later
+        # bounce for the same recipient remain distinct (not deduplicated away).
         email_id = esp_event.get("email_id")
         recipient = esp_event.get("recipient")
-        if email_id and recipient:
-            event_id = "%s-%s" % (email_id, recipient)
-        else:
-            event_id = email_id or None
+        id_parts = [str(part) for part in (email_id, recipient, bounced_at) if part]
+        event_id = "-".join(id_parts) or None
 
         # Recover the metadata and tags that the backend encoded into the
         # outbound X-Metadata/X-Tags headers, if Forward Email echoes the
@@ -198,9 +197,13 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
 
     def parse_events(self, request):
         esp_event = json.loads(request.body.decode("utf-8"))
-        return [self.esp_to_anymail_event(esp_event)]
+        # Forward Email may group several aliases that share one webhook URL into
+        # a single POST, listing every delivered address in `recipients`. Emit
+        # one inbound event per recipient (a single event when there's just one).
+        recipients = esp_event.get("recipients") or [None]
+        return [self.esp_to_anymail_event(esp_event, r) for r in recipients]
 
-    def esp_to_anymail_event(self, esp_event):
+    def esp_to_anymail_event(self, esp_event, recipient=None):
         raw_mime = esp_event.get("raw")
         if raw_mime:
             message = AnymailInboundMessage.parse_raw_mime(raw_mime)
@@ -217,10 +220,7 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
         message.envelope_sender = (
             session.get("sender") or mail_from.get("address") or None
         )
-        recipients = esp_event.get("recipients") or []
-        message.envelope_recipient = session.get("recipient") or (
-            recipients[0] if recipients else None
-        )
+        message.envelope_recipient = recipient or session.get("recipient")
 
         # Forward Email runs a spam scanner and may include a score.
         spam_score = esp_event.get("spamScore")
@@ -232,13 +232,15 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
         if "isSpam" in esp_event:
             message.spam_detected = bool(esp_event["isSpam"])
 
+        message_id = esp_event.get("messageId") or message.get("Message-ID")
+        event_id = "-".join(str(p) for p in (message_id, recipient) if p) or None
         return AnymailInboundEvent(
             event_type=EventType.INBOUND,
             # SMTP arrival time, if Forward Email provided it.
             timestamp=self._parse_timestamp(
                 session.get("arrivalDate") or session.get("arrivalTime")
             ),
-            event_id=esp_event.get("messageId") or message.get("Message-ID"),
+            event_id=event_id,
             esp_event=esp_event,
             message=message,
         )
