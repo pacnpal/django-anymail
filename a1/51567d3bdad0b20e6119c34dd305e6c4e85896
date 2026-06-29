@@ -1,0 +1,21 @@
+tests/test_forwardemail_integration.py
+  s_0c519ffabc3af4::t_1b51ef46058977 3,11
+  s_0c519ffabc3af4::t_0a9589dc3d75bf 63,76,80-86,89
+  s_0c519ffabc3af4::t_889c7c1e4f4e61 67-69,72-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a151567d3bdad0b20e6119c34dd305e6c4e85896",
+  "prompts": {},
+  "sessions": {
+    "s_0c519ffabc3af4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "edb21889-3716-4ea4-87bc-ba35459c8957",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pacnpal <183241239+pacnpal@users.noreply.github.com>"
+    }
+  }
+}
