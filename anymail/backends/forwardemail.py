@@ -36,7 +36,7 @@ class EmailBackend(AnymailRequestsBackend):
             # Forward Email returns the created email record. Prefer the
             # generated Message-ID header value; fall back to the record id.
             message_id = parsed_response.get("message_id") or parsed_response["id"]
-        except (KeyError, TypeError) as err:
+        except (KeyError, TypeError, AttributeError) as err:
             raise AnymailRequestsAPIError(
                 "Invalid Forward Email API response format",
                 email_message=message,

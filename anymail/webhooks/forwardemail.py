@@ -140,8 +140,10 @@ class ForwardEmailInboundWebhookView(ForwardEmailBaseWebhookView):
             message = self.message_from_parsed(esp_event)
 
         # Envelope (SMTP) sender/recipient come from the SMTP session.
+        # (mailFrom may be explicitly null for some automated/bounce messages.)
         session = esp_event.get("session") or {}
-        message.envelope_sender = session.get("mailFrom", {}).get("address") or None
+        mail_from = session.get("mailFrom") or {}
+        message.envelope_sender = mail_from.get("address") or None
         recipients = esp_event.get("recipients") or []
         message.envelope_recipient = session.get("recipient") or (
             recipients[0] if recipients else None

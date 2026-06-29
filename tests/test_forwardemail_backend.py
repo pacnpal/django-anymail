@@ -285,6 +285,16 @@ class ForwardEmailBackendAnymailFeatureTests(ForwardEmailBackendMockAPITestCase)
         ):
             self.message.send()
 
+    def test_non_dict_api_response(self):
+        # A non-dict response (list/str/None) must not crash with AttributeError;
+        # it should be converted to an AnymailRequestsAPIError (respecting
+        # fail_silently). See parse_recipient_status.
+        self.set_mock_response(raw=b"[]")
+        with self.assertRaisesMessage(
+            AnymailAPIError, "Invalid Forward Email API response format"
+        ):
+            self.message.send()
+
 
 @tag("forwardemail")
 @override_settings(EMAIL_BACKEND="anymail.backends.forwardemail.EmailBackend")

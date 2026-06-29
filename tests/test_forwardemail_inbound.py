@@ -110,6 +110,20 @@ class ForwardEmailInboundWebhookTests(ForwardEmailInboundTestCase):
         self.assertEqual(message.html, "<p>Parsed body</p>")
         self.assertEqual(message.envelope_recipient, "inbound@example.com")
 
+    def test_inbound_null_mailfrom(self):
+        # mailFrom may be explicitly null (e.g. for bounce/automated messages);
+        # this must not crash.
+        payload = {
+            "raw": SAMPLE_RAW_MIME,
+            "recipients": ["inbound@example.com"],
+            "session": {"mailFrom": None, "recipient": "inbound@example.com"},
+        }
+        response = self.client_post_signed("/anymail/forwardemail/inbound/", payload)
+        self.assertEqual(response.status_code, 200)
+        message = self.get_kwargs(self.inbound_handler)["event"].message
+        self.assertIsNone(message.envelope_sender)
+        self.assertEqual(message.envelope_recipient, "inbound@example.com")
+
     def test_invalid_signature_rejected(self):
         body = json.dumps({"raw": SAMPLE_RAW_MIME})
         response = self.client.post(
