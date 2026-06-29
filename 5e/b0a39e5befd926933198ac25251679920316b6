@@ -1,0 +1,21 @@
+anymail/webhooks/forward_email.py
+  s_0c519ffabc3af4::t_5c0f7a4948bf3e 289-292,300-301
+tests/test_forward_email_inbound.py
+  s_0c519ffabc3af4::t_e3f716db2c70aa 116-132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5eb0a39e5befd926933198ac25251679920316b6",
+  "prompts": {},
+  "sessions": {
+    "s_0c519ffabc3af4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "edb21889-3716-4ea4-87bc-ba35459c8957",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "pacnpal <183241239+pacnpal@users.noreply.github.com>"
+    }
+  }
+}
