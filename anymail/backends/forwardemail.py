@@ -111,12 +111,16 @@ class ForwardEmailPayload(RequestsPayload):
     def set_extra_headers(self, headers):
         # Forward Email requires header values to be strings.
         # Stringify ints and floats; anything else is the caller's responsibility.
-        self.data.setdefault("headers", {}).update(
-            {
-                key: str(value) if isinstance(value, BASIC_NUMERIC_TYPES) else value
-                for key, value in headers.items()
-            }
-        )
+        for key, value in headers.items():
+            if isinstance(value, BASIC_NUMERIC_TYPES):
+                value = str(value)
+            if key.lower() == "message-id":
+                # Message-ID is a protected header in Nodemailer/Forward Email:
+                # it must be set via the dedicated `messageId` field, or it will
+                # be overwritten with a generated value.
+                self.data["messageId"] = value
+            else:
+                self.data.setdefault("headers", {})[key] = value
 
     def set_text_body(self, body):
         self.data["text"] = body

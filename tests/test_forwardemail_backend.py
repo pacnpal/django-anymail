@@ -93,7 +93,7 @@ class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
             reply_to=["another@example.com", "Other <reply2@example.com>"],
             headers={
                 "X-MyHeader": "my value",
-                "Message-ID": "mycustommsgid@example.com",
+                "Message-ID": "<mycustommsgid@example.com>",
             },
         )
         email.send()
@@ -107,7 +107,10 @@ class ForwardEmailBackendStandardEmailTests(ForwardEmailBackendMockAPITestCase):
             data["replyTo"], "another@example.com, Other <reply2@example.com>"
         )
         self.assertEqual(data["headers"]["X-MyHeader"], "my value")
-        self.assertEqual(data["headers"]["Message-ID"], "mycustommsgid@example.com")
+        # Message-ID is a protected header: it must go to Nodemailer's dedicated
+        # `messageId` field, not the generic headers (which would be overwritten).
+        self.assertEqual(data["messageId"], "<mycustommsgid@example.com>")
+        self.assertNotIn("Message-ID", data.get("headers", {}))
 
     def test_html_message(self):
         text_content = "This is an important message."
