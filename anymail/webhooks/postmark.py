@@ -166,7 +166,7 @@ class PostmarkInboundWebhookView(PostmarkBaseWebhookView):
         if esp_record_type != "Inbound":
             raise AnymailConfigurationError(
                 f"You seem to have set Postmark's *{esp_record_type}* webhook"
-                f" to Anymail's Postmark *inbound* webhook URL."
+                " to Anymail's Postmark *inbound* webhook URL."
             )
 
         headers = esp_event.get("Headers", [])

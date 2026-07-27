@@ -35,7 +35,7 @@ class BrevoTrackingWebhookView(BrevoBaseWebhookView):
         if "items" in esp_event:
             # This is an inbound webhook post
             raise AnymailConfigurationError(
-                f"You seem to have set Brevo's *inbound* webhook URL "
+                "You seem to have set Brevo's *inbound* webhook URL "
                 f"to Anymail's {self.esp_name} *tracking* webhook URL."
             )
         return [self.esp_to_anymail_event(esp_event)]
@@ -156,7 +156,7 @@ class BrevoInboundWebhookView(BrevoBaseWebhookView):
         except KeyError:
             # This is not an inbound webhook post
             raise AnymailConfigurationError(
-                f"You seem to have set Brevo's *tracking* webhook URL "
+                "You seem to have set Brevo's *tracking* webhook URL "
                 f"to Anymail's {self.esp_name} *inbound* webhook URL."
             )
         else:
